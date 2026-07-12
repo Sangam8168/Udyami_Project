@@ -1,7 +1,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/54909791-28c7-4d5a-b4ab-be011925a467
+**URL**: [https://udyami-project.vercel.app/]
 
 
 **Use your preferred IDE**
@@ -50,16 +50,6 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/54909791-28c7-4d5a-b4ab-be011925a467) and click on Share -> Publish.
-
-
-
-
 
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-# Udyami_Project
-# Udyami_Project
