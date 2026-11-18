@@ -1,303 +1,153 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Calculator, PiggyBank, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Gamepad2, Trophy, Star, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import AdvancedBudgetingGame from "@/components/games/AdvancedBudgetingGame";
-import SavingsGoalGame from "@/components/games/SavingsGoalGame";
 import AdvancedFraudQuiz from "@/components/games/AdvancedFraudQuiz";
+import SavingsGoalGame from "@/components/games/SavingsGoalGame";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-const Games = () => {
-  const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  const [userProgress, setUserProgress] = useState({
-    budgeting: { completed: false, score: 0 },
-    savings: { completed: false, score: 0 },
-    fraud: { completed: false, score: 0 },
-    digital: { completed: false, score: 0 }
-  });
-  const { user, session } = useAuth();
-  const navigate = useNavigate();
+const games = [
+  { id: "budgeting", name: "Budgeting Challenge", hindi: "बजट चुनौती", detail: "Practise making room for essentials, savings, and loan payments.", icon: Calculator, component: AdvancedBudgetingGame },
+  { id: "savings", name: "Savings Goal Planner", hindi: "बचत लक्ष्य", detail: "Set a goal and see how changing the deposit or deadline affects your plan.", icon: PiggyBank, component: SavingsGoalGame },
+  { id: "fraud", name: "Fraud Detection Quiz", hindi: "धोखाधड़ी पहचान", detail: "Read realistic practice messages and choose your safest next action.", icon: ShieldCheck, component: AdvancedFraudQuiz },
+] as const;
+
+type GameId = typeof games[number]["id"];
+type Scores = Partial<Record<GameId, number>>;
+const storageKey = "udyami-learning-games-progress";
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
+
+function readDeviceScores(): Scores {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "{}");
+    return Object.fromEntries(games.flatMap(({ id }) => typeof saved?.[id] === "number" && Number.isFinite(saved[id])
+      ? [[id, clampScore(saved[id])]]
+      : []));
+  } catch {
+    return {};
+  }
+}
+
+function updateScore(scores: Scores, id: GameId, score: number): Scores {
+  return { ...scores, [id]: Math.max(scores[id] ?? 0, clampScore(score)) };
+}
+
+export default function Games() {
+  const [selected, setSelected] = useState<GameId | null>(null);
+  const [deviceScores, setDeviceScores] = useState(readDeviceScores);
+  const [account, setAccount] = useState<{ id: string; scores: Scores } | null>(null);
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const userId = user?.id;
 
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(deviceScores));
+    } catch {
+      // Progress stays available for this visit when browser storage is unavailable.
+    }
+  }, [deviceScores]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void Promise.all(games.map(async ({ id }) => {
+      const { data } = await supabase.from("game_scores")
+        .select("score")
+        .eq("user_id", userId)
+        .eq("game_id", id)
+        .order("score", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return { id, score: data?.score };
+    })).then(records => {
+      if (cancelled) return;
+      setAccount(previous => {
+        const scores = records.reduce<Scores>((best, record) => record.score == null
+          ? best
+          : updateScore(best, record.id, record.score), previous?.id === userId ? previous.scores : {});
+        return { id: userId, scores };
+      });
+    });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const complete = async (id: GameId, score: number) => {
+    const result = clampScore(score);
+    if (!userId) {
+      setDeviceScores(previous => updateScore(previous, id, result));
       return;
     }
-    loadUserProgress();
-  }, [user, navigate]);
 
-  const loadUserProgress = async () => {
-    if (!user) return;
-
+    setAccount(previous => ({
+      id: userId,
+      scores: updateScore(previous?.id === userId ? previous.scores : {}, id, result),
+    }));
     try {
-      const { data, error } = await supabase
-        .from('game_scores')
-        .select('game_id, score')
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false });
-
+      const { error } = await supabase.from("game_scores").insert({ user_id: userId, game_id: id, score: result });
       if (error) throw error;
-
-      const progress = { ...userProgress };
-      
-      // Get best scores for each game
-      data?.forEach((record) => {
-        const gameId = record.game_id as keyof typeof progress;
-        if (progress[gameId]) {
-          progress[gameId] = {
-            completed: true,
-            score: Math.max(progress[gameId].score, record.score)
-          };
-        }
-      });
-
-      setUserProgress(progress);
-    } catch (error) {
-      console.error('Error loading user progress:', error);
+    } catch {
+      toast({ title: "Score could not be saved to your account", description: "Your round and its explanations are still available.", variant: "destructive" });
     }
   };
 
-  const games = [
-    {
-      id: "budgeting",
-      title: "उन्नत बजट चुनौती",
-      titleEn: "Advanced Budgeting Challenge",
-      description: "Master budgeting with 3 difficulty levels, timed challenges, and achievements",
-      difficulty: "Beginner to Advanced",
-      duration: "10-20 min", 
-      points: 150,
-      icon: "💰",
-      component: AdvancedBudgetingGame
-    },
-    {
-      id: "savings",
-      title: "बचत लक्ष्य योजनाकार",
-      titleEn: "Savings Goal Planner",
-      description: "Create realistic savings plans for life goals with personalized recommendations",
-      difficulty: "Beginner",
-      duration: "8-12 min", 
-      points: 150,
-      icon: "🏦",
-      component: SavingsGoalGame
-    },
-    {
-      id: "fraud",
-      title: "उन्नत धोखाधड़ी जांच",
-      titleEn: "Advanced Fraud Detection",
-      description: "Test your skills across 3 levels with real-world scam scenarios and time pressure",
-      difficulty: "Beginner to Advanced",
-      duration: "12-18 min",
-      points: 200,
-      icon: "🛡️",
-      component: AdvancedFraudQuiz
-    }
-  ];
-
-  const totalPoints = Object.values(userProgress).reduce((sum, progress) => sum + progress.score, 0);
-  const completedGames = Object.values(userProgress).filter(progress => progress.completed).length;
-
-  const handlePlayGame = (gameId: string) => {
-    setSelectedGame(gameId);
-  };
-
-  const handleGameComplete = async (gameId: string, score: number) => {
-    if (!user || !session) return;
-
-    try {
-      // Save to database
-      const { error } = await supabase.functions.invoke('save-game-score', {
-        body: { gameId, score },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-
-      // Update local state
-      setUserProgress(prev => ({
-        ...prev,
-        [gameId]: { 
-          completed: true, 
-          score: Math.max(prev[gameId as keyof typeof prev]?.score || 0, score)
-        }
-      }));
-      
-      toast({
-        title: "स्कोर सहेजा गया! (Score Saved!)",
-        description: `Your score of ${score}% has been saved.`,
-      });
-    } catch (error) {
-      console.error('Error saving game score:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save score. Please try again.",
-        variant: "destructive",
-      });
-    }
-
-    setSelectedGame(null);
-  };
-
-  if (selectedGame) {
-    const game = games.find(g => g.id === selectedGame);
-    const GameComponent = game?.component;
-    
-    if (GameComponent) {
-      return (
-        <Layout>
-          <div className="container mx-auto px-4 py-8">
-            <div className="mb-6">
-              <Button 
-                onClick={() => setSelectedGame(null)}
-                variant="outline" 
-                className="mb-4"
-              >
-                ← वापस जाएं (Go Back)
-              </Button>
-              <h1 className="text-3xl font-bold text-foreground mb-2">{game.titleEn}</h1>
-              <p className="text-muted-foreground">{game.description}</p>
-            </div>
-            <GameComponent onComplete={(score: number) => handleGameComplete(selectedGame, score)} />
-          </div>
-        </Layout>
-      );
-    }
-  }
+  const active = games.find(game => game.id === selected);
+  const scores = userId ? (account?.id === userId ? account.scores : {}) : deviceScores;
+  const completed = Object.keys(scores).length;
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            वित्तीय शिक्षा खेल
-          </h1>
-          <p className="text-xl text-muted-foreground mb-6">
-            Learn financial concepts through fun, interactive games designed for you
-          </p>
-          
-          {/* Progress Overview */}
-          <div className="bg-gradient-subtle rounded-2xl p-6 max-w-2xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-3xl font-bold text-primary">{totalPoints}</div>
-                <p className="text-sm text-muted-foreground">Total Points</p>
+      <div className="container mx-auto space-y-7 px-4 py-8 sm:py-12">
+        {active ? (
+          <>
+            <header className="space-y-3">
+              <Button variant="ghost" className="-ml-3" onClick={() => setSelected(null)}><ArrowLeft className="h-4 w-4" aria-hidden="true" /> All games</Button>
+              <h1 className="text-3xl font-bold">{active.name}</h1>
+              <p className="text-muted-foreground">{active.detail}</p>
+            </header>
+            <active.component onComplete={score => { void complete(active.id, score); }} />
+          </>
+        ) : (
+          <>
+            <header className="space-y-3">
+              <h1 className="text-3xl font-bold sm:text-4xl">वित्तीय शिक्षा खेल (Financial Learning Games)</h1>
+              <p className="text-muted-foreground">Make a choice, check your reasoning, and try the lesson again whenever you like.</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="secondary">{completed} of {games.length} games completed</Badge>
+                {!authLoading && !userId && <p className="text-sm text-muted-foreground">Progress is saved in this browser. <Link to="/auth" className="underline">Sign in</Link> to track scores in your account.</p>}
               </div>
-              <div>
-                <div className="text-3xl font-bold text-primary">{completedGames}/3</div>
-                <p className="text-sm text-muted-foreground">Games Completed</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-center">
-                  {[...Array(3)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`w-6 h-6 ${completedGames > i ? 'text-primary fill-primary' : 'text-muted-foreground'}`} 
-                    />
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground">Achievement Level</p>
-              </div>
+            </header>
+            <div className="grid gap-5 md:grid-cols-3">
+              {games.map(game => (
+                <Card key={game.id} className="flex flex-col shadow-warm">
+                  <CardHeader className="space-y-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <game.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <CardTitle className="text-xl">{game.name}</CardTitle>
+                      <CardDescription className="mt-1">{game.hindi}</CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col items-start gap-4">
+                    <p className="flex-1 text-sm text-muted-foreground">{game.detail}</p>
+                    {scores[game.id] !== undefined && <Badge variant="outline">Best score {scores[game.id]}%</Badge>}
+                    <Button onClick={() => setSelected(game.id)} className="w-full">
+                      {scores[game.id] === undefined ? "Start game" : "Play again"} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
-        </div>
-
-        {/* Games Grid */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          {games.map((game) => {
-            const progress = userProgress[game.id as keyof typeof userProgress];
-            const isAvailable = game.component !== null;
-            
-            return (
-              <Card key={game.id} className={`shadow-warm transition-smooth ${isAvailable ? 'hover:shadow-glow cursor-pointer' : 'opacity-60'}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="text-3xl">{game.icon}</div>
-                      <div>
-                        <CardTitle className="text-xl text-foreground">{game.titleEn}</CardTitle>
-                        <CardDescription className="text-muted-foreground">
-                          {game.title}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    {progress.completed && (
-                      <Badge className="bg-success text-success-foreground">
-                        <Trophy className="w-3 h-3 mr-1" />
-                        {progress.score}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">{game.description}</p>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-4">
-                    <span>📊 {game.difficulty}</span>
-                    <span>⏱️ {game.duration}</span>
-                    <span>🎯 {game.points} points</span>
-                  </div>
-
-                  {progress.completed && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span>Your Best Score</span>
-                        <span>{progress.score}%</span>
-                      </div>
-                      <Progress value={progress.score} className="h-2" />
-                    </div>
-                  )}
-
-                  <Button 
-                    onClick={() => handlePlayGame(game.id)}
-                    disabled={!isAvailable}
-                    className="w-full btn-primary"
-                  >
-                    {!isAvailable ? (
-                      "जल्द आ रहा है (Coming Soon)"
-                    ) : progress.completed ? (
-                      <>फिर से खेलें (Play Again) <ArrowRight className="w-4 h-4 ml-2" /></>
-                    ) : (
-                      <>खेल शुरू करें (Start Game) <Gamepad2 className="w-4 h-4 ml-2" /></>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Tips Section */}
-        <Card className="bg-accent/30">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <span>💡</span>
-              <span>गेम टिप्स (Game Tips)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-muted-foreground">
-              <li>• Choose difficulty level that matches your knowledge</li>
-              <li>• Timed challenges test quick decision-making skills</li>
-              <li>• Track your streak and earn achievements</li>
-              <li>• Learn from detailed explanations after each question</li>
-              <li>• Practice makes perfect - replay to improve scores!</li>
-              <li>• Advanced levels include real-world complex scenarios</li>
-            </ul>
-          </CardContent>
-        </Card>
+          </>
+        )}
       </div>
     </Layout>
   );
-};
-
-export default Games;
+}

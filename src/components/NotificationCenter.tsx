@@ -53,30 +53,62 @@ export const NotificationCenter = () => {
 
     fetchNotifications();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates with better error handling
     const channel = supabase
-      .channel("notifications-channel")
+      .channel(`notifications-${user.id}`, {
+        config: {
+          broadcast: { self: true },
+        },
+      })
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications((prev) => [newNotification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-          
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-          });
+          if (payload.eventType === "INSERT") {
+            const newNotification = payload.new as Notification;
+            setNotifications((prev) => [newNotification, ...prev]);
+            setUnreadCount((prev) => prev + 1);
+            
+            // Show toast for new notification
+            toast({
+              title: newNotification.title,
+              description: newNotification.message,
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const updatedNotification = payload.new as Notification;
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
+            );
+            setUnreadCount((prev) => {
+              if (updatedNotification.read && prev > 0) return prev - 1;
+              return prev;
+            });
+          } else if (payload.eventType === "DELETE") {
+            setNotifications((prev) => prev.filter((n) => n.id !== payload.old.id));
+            setUnreadCount((prev) => {
+              if (!payload.old.read && prev > 0) return prev - 1;
+              return prev;
+            });
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Successfully subscribed to notifications");
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("Notification channel error");
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to notification service. Some features may be limited.",
+            variant: "destructive",
+          });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

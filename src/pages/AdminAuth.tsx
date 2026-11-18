@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Shield } from "lucide-react";
+import { ArrowLeft, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const AdminAuth = () => {
@@ -70,13 +70,14 @@ const AdminAuth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-primary">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-subtle px-4 py-8">
       <Card className="w-full max-w-md shadow-warm">
         <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center space-x-2">
-            <Shield className="w-6 h-6 text-primary" />
-            <span>Admin Login</span>
-          </CardTitle>
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Shield className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <CardTitle>Admin Login</CardTitle>
+          <CardDescription>Udyami Administration</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
@@ -111,29 +112,23 @@ const AdminAuth = () => {
             
             <Button 
               type="submit" 
-              className="w-full bg-red-600 hover:bg-red-700" 
+              className="w-full"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign in as Admin"}
             </Button>
             
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-300"></span>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-2 text-slate-500">Interface</span>
-              </div>
+            <div className="grid gap-2 border-t pt-4">
+              <Button asChild variant="outline">
+                <Link to="/auth">Switch to User Login</Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link to="/">
+                  <ArrowLeft aria-hidden="true" />
+                  Back to Main Site
+                </Link>
+              </Button>
             </div>
-            
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate("/auth")}
-            >
-              Switch to User Login
-            </Button>
           </form>
         </CardContent>
       </Card>

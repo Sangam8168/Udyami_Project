@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSchemePreferences, saveSchemePreferences } from "@/lib/schemePreferences";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,125 +54,101 @@ interface FormData {
   email_notifications: boolean;
 }
 
-export function SchemePreferencesForm() {
-  const { user } = useAuth();
+export function SchemePreferencesForm({ onSaved }: { onSaved?: () => void }) {
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [interestedCategories, setInterestedCategories] = useState<string[]>([]);
-  
-  const { register, handleSubmit, setValue, watch, reset } = useForm<FormData>({
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const preferencesKey = ["scheme-preferences", user?.id];
+  const { data: preferences, isPending, isError, refetch } = useQuery({
+    queryKey: preferencesKey,
+    queryFn: () => fetchSchemePreferences(user?.id),
+    enabled: !authLoading,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { register, handleSubmit, setValue, watch, reset, formState: { isSubmitting } } = useForm<FormData>({
     defaultValues: {
       notification_enabled: true,
       email_notifications: true,
       interested_categories: [],
-    }
+    },
   });
 
-  // Load existing preferences
   useEffect(() => {
-    const loadPreferences = async () => {
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("user_scheme_preferences")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error loading preferences:", error);
-        return;
-      }
-
-      if (data) {
-        reset({
-          income_level: data.income_level || "",
-          occupation: data.occupation || "",
-          education_level: data.education_level || "",
-          location_type: data.location_type || "",
-          state: data.state || "",
-          gender: data.gender || "",
-          age: data.age || 18,
-          family_size: data.family_size || 1,
-          interested_categories: data.interested_categories || [],
-          notification_enabled: data.notification_enabled,
-          email_notifications: data.email_notifications,
-        });
-        setInterestedCategories(data.interested_categories || []);
-      }
-    };
-
-    loadPreferences();
-  }, [user, reset]);
+    if (preferences) {
+      reset({
+        income_level: preferences.income_level ?? "",
+        occupation: preferences.occupation ?? "",
+        education_level: preferences.education_level ?? "",
+        location_type: preferences.location_type ?? "",
+        state: preferences.state ?? "",
+        gender: preferences.gender ?? "",
+        age: preferences.age ?? undefined,
+        family_size: preferences.family_size ?? undefined,
+        interested_categories: preferences.interested_categories ?? [],
+        notification_enabled: preferences.notification_enabled ?? true,
+        email_notifications: preferences.email_notifications ?? true,
+      });
+    }
+  }, [preferences, reset]);
 
   const onSubmit = async (data: FormData) => {
-    if (!user) return;
-
-    setLoading(true);
     try {
-      // First clean up any duplicate entries
-      await supabase
-        .from("user_scheme_preferences")
-        .delete()
-        .eq("user_id", user.id);
-
-      // Then insert the new preferences
-      const { error } = await supabase
-        .from("user_scheme_preferences")
-        .insert({
-          user_id: user.id,
-          ...data,
-          interested_categories: interestedCategories,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Preferences saved",
-        description: "Your scheme preferences have been updated successfully.",
+      const saved = await saveSchemePreferences(user?.id, {
+        id: preferences?.id,
+        ...data,
+        age: Number.isFinite(data.age) ? data.age : null,
+        family_size: Number.isFinite(data.family_size) ? data.family_size : null,
       });
 
-      // Navigate back to schemes page
-      setTimeout(() => {
-        window.history.pushState({}, '', '/schemes');
-        window.location.reload();
-      }, 1000);
+      queryClient.setQueryData(preferencesKey, saved);
+      void queryClient.invalidateQueries({ queryKey: ["scheme-recommendations", user?.id] });
+      toast({ title: user ? "Preferences saved" : "Preferences saved on this device" });
+
+      if (onSaved) onSaved();
+      else navigate("/schemes");
     } catch (error) {
       console.error("Error saving preferences:", error);
       toast({
-        title: "Error",
-        description: "Failed to save preferences. Please try again.",
+        title: "Could not save preferences",
+        description: "Your edits are still in the form. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleCategoryChange = (category: string, checked: boolean) => {
-    const updatedCategories = checked
-      ? [...interestedCategories, category]
-      : interestedCategories.filter(c => c !== category);
-    
-    setInterestedCategories(updatedCategories);
-    setValue("interested_categories", updatedCategories);
-  };
+  const interestedCategories = watch("interested_categories");
+
+  if (authLoading || isPending) {
+    return <p role="status">Loading preferences…</p>;
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-3" role="alert">
+        <p>Could not load your saved preferences.</p>
+        <Button variant="outline" onClick={() => refetch()}>Try again</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {user && <SchemeNotifications />}
+      {user ? <SchemeNotifications /> : (
+        <p className="text-sm text-muted-foreground">Your preferences are saved in this browser.</p>
+      )}
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="income_level">Income Level</Label>
           <Select 
-            value={watch("income_level")} 
+            value={watch("income_level") ?? ""}
             onValueChange={(value) => setValue("income_level", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="income_level">
               <SelectValue placeholder="Select income level" />
             </SelectTrigger>
             <SelectContent>
@@ -186,10 +164,10 @@ export function SchemePreferencesForm() {
         <div className="space-y-2">
           <Label htmlFor="occupation">Occupation</Label>
           <Select 
-            value={watch("occupation")} 
+            value={watch("occupation") ?? ""}
             onValueChange={(value) => setValue("occupation", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="occupation">
               <SelectValue placeholder="Select occupation" />
             </SelectTrigger>
             <SelectContent>
@@ -205,10 +183,10 @@ export function SchemePreferencesForm() {
         <div className="space-y-2">
           <Label htmlFor="education_level">Education Level</Label>
           <Select 
-            value={watch("education_level")} 
+            value={watch("education_level") ?? ""}
             onValueChange={(value) => setValue("education_level", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="education_level">
               <SelectValue placeholder="Select education level" />
             </SelectTrigger>
             <SelectContent>
@@ -224,10 +202,10 @@ export function SchemePreferencesForm() {
         <div className="space-y-2">
           <Label htmlFor="location_type">Location Type</Label>
           <Select 
-            value={watch("location_type")} 
+            value={watch("location_type") ?? ""}
             onValueChange={(value) => setValue("location_type", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="location_type">
               <SelectValue placeholder="Select location type" />
             </SelectTrigger>
             <SelectContent>
@@ -240,10 +218,10 @@ export function SchemePreferencesForm() {
         <div className="space-y-2">
           <Label htmlFor="state">State</Label>
           <Select 
-            value={watch("state")} 
+            value={watch("state") ?? ""}
             onValueChange={(value) => setValue("state", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="state">
               <SelectValue placeholder="Select state" />
             </SelectTrigger>
             <SelectContent>
@@ -259,10 +237,10 @@ export function SchemePreferencesForm() {
         <div className="space-y-2">
           <Label htmlFor="gender">Gender</Label>
           <Select 
-            value={watch("gender")} 
+            value={watch("gender") ?? ""}
             onValueChange={(value) => setValue("gender", value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="gender">
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
             <SelectContent>
@@ -309,7 +287,12 @@ export function SchemePreferencesForm() {
                 <Checkbox
                   id={category}
                   checked={interestedCategories.includes(category)}
-                  onCheckedChange={(checked) => handleCategoryChange(category, checked as boolean)}
+                  onCheckedChange={(checked) => setValue(
+                    "interested_categories",
+                    checked === true
+                      ? [...interestedCategories, category]
+                      : interestedCategories.filter((value) => value !== category)
+                  )}
                 />
                 <Label htmlFor={category} className="capitalize">
                   {category}
@@ -320,35 +303,39 @@ export function SchemePreferencesForm() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Notification Preferences</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="notification_enabled"
-              {...register("notification_enabled")}
-            />
-            <Label htmlFor="notification_enabled">
-              Enable scheme notifications
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="email_notifications"
-              {...register("email_notifications")}
-            />
-            <Label htmlFor="email_notifications">
-              Email notifications for new schemes and deadlines
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
+      {user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Notification Preferences</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="notification_enabled"
+                checked={watch("notification_enabled")}
+                onCheckedChange={(checked) => setValue("notification_enabled", checked === true)}
+              />
+              <Label htmlFor="notification_enabled">
+                Enable scheme notifications
+              </Label>
+            </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Saving..." : "Save Preferences"}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="email_notifications"
+                checked={watch("email_notifications")}
+                onCheckedChange={(checked) => setValue("email_notifications", checked === true)}
+              />
+              <Label htmlFor="email_notifications">
+                Email notifications for new schemes and deadlines
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : "Save Preferences"}
         </Button>
       </form>
     </div>

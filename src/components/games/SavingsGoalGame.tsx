@@ -1,385 +1,174 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calculator, SlidersHorizontal, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Trophy, Target, Calendar, Coins } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { describeSavingsPlan, type SavingsInputs } from "@/lib/savingsPlan";
 
-interface SavingsGoalGameProps {
-  onComplete: (score: number) => void;
-}
+const rupees = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+const goals = [
+  { id: "emergency", label: "आपातकालीन फंड (Emergency fund)", target: 24_000, saved: 6_000, months: 6 },
+  { id: "education", label: "शिक्षा (Education)", target: 36_000, saved: 6_000, months: 12 },
+  { id: "house", label: "घर (House down payment)", target: 200_000, saved: 20_000, months: 36 },
+  { id: "wedding", label: "शादी (Wedding)", target: 150_000, saved: 15_000, months: 24 },
+  { id: "business", label: "व्यापार (Business equipment)", target: 60_000, saved: 12_000, months: 12 },
+  { id: "custom", label: "Custom goal", target: 0, saved: 0, months: 12 },
+];
 
-const SavingsGoalGame = ({ onComplete }: SavingsGoalGameProps) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [userInputs, setUserInputs] = useState({
-    goal: "",
-    amount: "",
-    timeline: "",
-    monthlyIncome: "",
-    currentSavings: ""
-  });
-  const [gameData, setGameData] = useState({
-    goalType: "",
-    targetAmount: 0,
-    timelineMonths: 0,
-    monthlyRequired: 0,
-    userMonthlySavings: 0,
-    feasible: false
-  });
-  const [score, setScore] = useState(0);
-  const [gameCompleted, setGameCompleted] = useState(false);
+const fields = [
+  { key: "target", label: "Goal amount (₹)", min: 1 },
+  { key: "saved", label: "Already set aside for this goal (₹)", min: 0 },
+  { key: "months", label: "Months to save", min: 1, max: 120 },
+  { key: "income", label: "Monthly take-home income (₹)", min: 0 },
+  { key: "expenses", label: "Monthly expenses and EMIs (₹)", min: 0 },
+  { key: "contribution", label: "Planned monthly deposit (₹)", min: 0 },
+] satisfies { key: keyof SavingsInputs; label: string; min: number; max?: number }[];
 
-  const savingsGoals = [
-    { id: "education", name: "बच्चे की शिक्षा (Child's Education)", amount: 100000, icon: "🎓" },
-    { id: "house", name: "घर का डाउन पेमेंट (House Down Payment)", amount: 200000, icon: "🏠" },
-    { id: "wedding", name: "शादी की तैयारी (Wedding Preparation)", amount: 150000, icon: "💒" },
-    { id: "emergency", name: "आपातकालीन फंड (Emergency Fund)", amount: 50000, icon: "🆘" },
-    { id: "business", name: "व्यापार शुरू करना (Start Business)", amount: 75000, icon: "💼" }
-  ];
+const initial = { target: "24000", saved: "6000", months: "6", income: "15000", expenses: "13000", contribution: "2000" };
 
-  const handleGoalSelect = (goal: any) => {
-    setUserInputs({
-      ...userInputs,
-      goal: goal.name,
-      amount: goal.amount.toString()
-    });
-    setGameData({
-      ...gameData,
-      goalType: goal.name,
-      targetAmount: goal.amount
-    });
-    setCurrentStep(1);
+const question = [
+  { label: "The full goal amount", reason: "This ignores money already set aside and could overstate the monthly target." },
+  { label: "The amount still needed after subtracting existing goal savings", reason: "You only need to fund the remaining gap. Divide that amount by the months left." },
+  { label: "The income left after monthly bills", reason: "That tells you what your budget can afford. Use it to check the plan after calculating the goal’s monthly target." },
+];
+
+export default function SavingsGoalGame({ onComplete }: { onComplete: (score: number) => void }) {
+  const [goal, setGoal] = useState("emergency");
+  const [title, setTitle] = useState("");
+  const [plan, setPlan] = useState(initial);
+  const [answer, setAnswer] = useState("");
+  const [reviewed, setReviewed] = useState(false);
+
+  const work = {
+    target: Number(plan.target), saved: Number(plan.saved), months: Number(plan.months),
+    income: Number(plan.income), expenses: Number(plan.expenses), contribution: Number(plan.contribution),
+  };
+  const valid = fields.every(({ key, min, max }) => plan[key] !== "" &&
+    Number.isInteger(work[key]) && work[key] >= min && work[key] <= (max ?? 1_000_000_000));
+  const outcome = valid ? describeSavingsPlan(work) : null;
+
+  const patch = (change: Partial<typeof initial>) => {
+    setPlan(previous => ({ ...previous, ...change }));
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setUserInputs({
-      ...userInputs,
-      [field]: value
-    });
+  const chooseGoal = (id: string) => {
+    const selected = goals.find(item => item.id === id);
+    if (!selected) return;
+    setGoal(id);
+    patch({ target: selected.target ? String(selected.target) : "", saved: String(selected.saved), months: String(selected.months) });
   };
 
-  const calculateSavings = () => {
-    const monthlyIncome = parseInt(userInputs.monthlyIncome) || 0;
-    const timeline = parseInt(userInputs.timeline) || 1;
-    const targetAmount = parseInt(userInputs.amount) || 0;
-    const currentSavings = parseInt(userInputs.currentSavings) || 0;
-    
-    const remainingAmount = targetAmount - currentSavings;
-    const monthlyRequired = remainingAmount / timeline;
-    const maxSavingsCapacity = monthlyIncome * 0.3; // Assume 30% is max sustainable savings rate
-    
-    const feasible = monthlyRequired <= maxSavingsCapacity && monthlyRequired > 0;
-    
-    setGameData({
-      ...gameData,
-      timelineMonths: timeline,
-      monthlyRequired: monthlyRequired,
-      userMonthlySavings: monthlyRequired,
-      feasible: feasible
-    });
-
-    // Calculate score based on feasibility and planning
-    let calculatedScore = 0;
-    if (feasible) calculatedScore += 40;
-    if (timeline >= 12) calculatedScore += 20; // Realistic timeline
-    if (monthlyRequired <= monthlyIncome * 0.25) calculatedScore += 30; // Conservative savings rate
-    if (currentSavings > 0) calculatedScore += 10; // Already has some savings
-    
-    setScore(calculatedScore);
-    setCurrentStep(2);
+  const submitAnswer = () => {
+    if (reviewed || answer === "" || !outcome) return;
+    setReviewed(true);
+    onComplete(answer === "1" ? 100 : 0);
   };
-
-  const completeGame = () => {
-    setGameCompleted(true);
-    onComplete(score);
-  };
-
-  const handleRestart = () => {
-    setCurrentStep(0);
-    setUserInputs({
-      goal: "",
-      amount: "",
-      timeline: "",
-      monthlyIncome: "",
-      currentSavings: ""
-    });
-    setGameData({
-      goalType: "",
-      targetAmount: 0,
-      timelineMonths: 0,
-      monthlyRequired: 0,
-      userMonthlySavings: 0,
-      feasible: false
-    });
-    setScore(0);
-    setGameCompleted(false);
-  };
-
-  if (gameCompleted) {
-    return (
-      <Card className="max-w-4xl mx-auto shadow-warm">
-        <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-8 h-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl text-foreground">Savings Plan Complete!</CardTitle>
-          <CardDescription>बधाई हो! (Congratulations!)</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <div className="bg-gradient-subtle rounded-lg p-6 mb-6">
-            <div className="text-4xl font-bold text-primary mb-2">{score}%</div>
-            <p className="text-muted-foreground">Your Savings Planning Score</p>
-          </div>
-          
-          <div className="text-left space-y-3 mb-6">
-            <h4 className="font-semibold text-foreground">Your Savings Plan Summary:</h4>
-            <div className="bg-card rounded-lg p-4 space-y-2">
-              <p><strong>Goal:</strong> {gameData.goalType}</p>
-              <p><strong>Target Amount:</strong> ₹{gameData.targetAmount.toLocaleString()}</p>
-              <p><strong>Timeline:</strong> {gameData.timelineMonths} months</p>
-              <p><strong>Monthly Savings Needed:</strong> ₹{Math.round(gameData.monthlyRequired).toLocaleString()}</p>
-              <p className={`font-semibold ${gameData.feasible ? 'text-success' : 'text-destructive'}`}>
-                <strong>Status:</strong> {gameData.feasible ? "✅ Achievable" : "⚠️ Needs Adjustment"}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-left space-y-3 mb-6">
-            <h4 className="font-semibold text-foreground">Key Learnings:</h4>
-            <ul className="text-muted-foreground space-y-1 text-sm">
-              <li>• Break large financial goals into smaller monthly targets</li>
-              <li>• Save 20-30% of income for long-term goals</li>
-              <li>• Having some existing savings makes goals more achievable</li>
-              <li>• Realistic timelines prevent financial stress</li>
-              <li>• Regular savings habits build financial discipline</li>
-            </ul>
-          </div>
-
-          <Button onClick={handleRestart} variant="outline" className="w-full">
-            नया लक्ष्य बनाएं (Create New Goal)
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const progress = ((currentStep + 1) / 3) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Progress Bar */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">
-              Step {currentStep + 1} of 3
-            </span>
-            <Badge variant="outline">Planning Your Savings Goal</Badge>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </CardContent>
-      </Card>
-
-      {/* Step 0: Goal Selection */}
-      {currentStep === 0 && (
+    <div className="max-w-5xl space-y-6">
+      <div className="grid items-start gap-6 md:grid-cols-2">
         <Card className="shadow-warm">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Target className="w-6 h-6" />
-              <span>Choose Your Savings Goal</span>
-            </CardTitle>
-            <CardDescription>
-              Select what you want to save for, or create a custom goal
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              {savingsGoals.map((goal) => (
-                <Button
-                  key={goal.id}
-                  onClick={() => handleGoalSelect(goal)}
-                  variant="outline"
-                  className="h-auto p-4 text-left justify-start hover:bg-accent/50"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{goal.icon}</span>
-                    <div>
-                      <div className="font-medium">{goal.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Suggested: ₹{goal.amount.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                </Button>
-              ))}
-            </div>
-            
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Or create a custom goal:</h4>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="customGoal">Goal Name</Label>
-                  <Input
-                    id="customGoal"
-                    placeholder="e.g., नई मोटरसाइकिल (New Motorcycle)"
-                    value={userInputs.goal}
-                    onChange={(e) => handleInputChange("goal", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customAmount">Target Amount (₹)</Label>
-                  <Input
-                    id="customAmount"
-                    type="number"
-                    placeholder="e.g., 80000"
-                    value={userInputs.amount}
-                    onChange={(e) => handleInputChange("amount", e.target.value)}
-                  />
-                </div>
-                <Button 
-                  onClick={() => {
-                    if (userInputs.goal && userInputs.amount) {
-                      setGameData({
-                        ...gameData,
-                        goalType: userInputs.goal,
-                        targetAmount: parseInt(userInputs.amount)
-                      });
-                      setCurrentStep(1);
-                    }
-                  }}
-                  disabled={!userInputs.goal || !userInputs.amount}
-                  className="w-full btn-primary"
-                >
-                  Continue with Custom Goal
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 1: Timeline and Income Input */}
-      {currentStep === 1 && (
-        <Card className="shadow-warm">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-6 h-6" />
-              <span>Plan Your Timeline</span>
-            </CardTitle>
-            <CardDescription>
-              Tell us about your income and when you want to achieve this goal
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5 text-primary" aria-hidden="true" /> Build a plan</CardTitle>
+            <CardDescription>Start with the example budget or try your own numbers.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-accent/30 rounded-lg p-4 mb-4">
-              <h4 className="font-medium text-foreground">Your Goal: {gameData.goalType}</h4>
-              <p className="text-muted-foreground">Target Amount: ₹{gameData.targetAmount.toLocaleString()}</p>
+            <div className="space-y-2">
+              <Label htmlFor="savings-goal">Savings goal</Label>
+              <Select value={goal} onValueChange={chooseGoal}>
+                <SelectTrigger id="savings-goal"><SelectValue /></SelectTrigger>
+                <SelectContent>{goals.map(item => <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="monthlyIncome">Monthly Income (₹)</Label>
-                <Input
-                  id="monthlyIncome"
-                  type="number"
-                  placeholder="e.g., 15000"
-                  value={userInputs.monthlyIncome}
-                  onChange={(e) => handleInputChange("monthlyIncome", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="timeline">Timeline (months)</Label>
-                <Input
-                  id="timeline"
-                  type="number"
-                  placeholder="e.g., 24"
-                  value={userInputs.timeline}
-                  onChange={(e) => handleInputChange("timeline", e.target.value)}
-                />
-              </div>
+            {goal === "custom" && <div className="space-y-2">
+              <Label htmlFor="savings-goal-title">Goal name</Label>
+              <Input id="savings-goal-title" value={title} maxLength={65} onChange={e => setTitle(e.target.value)} />
+            </div>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {fields.map(({ key, label, min, max }) => (
+                <div key={key} className="space-y-2">
+                  <Label htmlFor={`savings-${key}`}>{label}</Label>
+                  <Input id={`savings-${key}`} type="number" inputMode="numeric" min={min} max={max ?? 1_000_000_000}
+                    step={1} value={plan[key]} onChange={event => patch({ [key]: event.target.value })} />
+                </div>
+              ))}
             </div>
-
-            <div>
-              <Label htmlFor="currentSavings">Current Savings (₹)</Label>
-              <Input
-                id="currentSavings"
-                type="number"
-                placeholder="e.g., 5000"
-                value={userInputs.currentSavings}
-                onChange={(e) => handleInputChange("currentSavings", e.target.value)}
-              />
-            </div>
-
-            <Button 
-              onClick={calculateSavings}
-              disabled={!userInputs.monthlyIncome || !userInputs.timeline}
-              className="w-full btn-primary"
-            >
-              Calculate Savings Plan
-            </Button>
           </CardContent>
         </Card>
-      )}
 
-      {/* Step 2: Results and Recommendations */}
-      {currentStep === 2 && (
         <Card className="shadow-warm">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Coins className="w-6 h-6" />
-              <span>Your Savings Plan</span>
-            </CardTitle>
-            <CardDescription>
-              Here's your personalized savings strategy
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5 text-primary" aria-hidden="true" /> Savings forecast</CardTitle>
+            <CardDescription>{goal === "custom" && title.trim() ? title.trim() + " · " : ""}Monthly deposits are added without interest.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className={`rounded-lg p-6 mb-6 ${gameData.feasible ? 'bg-success/10 border border-success' : 'bg-destructive/10 border border-destructive'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Monthly Savings Required</h3>
-                <Badge className={gameData.feasible ? 'bg-success' : 'bg-destructive'}>
-                  {gameData.feasible ? 'Achievable' : 'Challenging'}
-                </Badge>
-              </div>
-              <div className="text-3xl font-bold mb-2">₹{Math.round(gameData.monthlyRequired).toLocaleString()}</div>
-              <p className="text-sm text-muted-foreground">
-                {Math.round((gameData.monthlyRequired / parseInt(userInputs.monthlyIncome)) * 100)}% of your monthly income
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <h4 className="font-medium">Recommendations:</h4>
-              {gameData.feasible ? (
-                <div className="space-y-2 text-sm">
-                  <p className="text-success">✅ Your goal is achievable with disciplined saving!</p>
-                  <p>• Set up automatic savings on payday</p>
-                  <p>• Track your progress monthly</p>
-                  <p>• Consider a dedicated savings account</p>
+          <CardContent className="space-y-4">
+            {outcome ? (
+              <>
+                <div className="rounded-lg border bg-accent/35 p-4">
+                  <p className="font-semibold">
+                    {outcome.remaining === 0 ? "Goal already funded" :
+                      outcome.budgetGap > 0 ? "Your planned deposit exceeds your budget" :
+                      outcome.goalGap > 0 ? `${rupees.format(outcome.goalGap)} left to fund by the deadline` : "Your plan reaches the goal"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    At {rupees.format(work.contribution)} per month, you’d have {rupees.format(outcome.projected)} in {work.months} months.
+                  </p>
                 </div>
-              ) : (
                 <div className="space-y-2 text-sm">
-                  <p className="text-destructive">⚠️ This goal needs adjustment:</p>
-                  <p>• Consider extending your timeline</p>
-                  <p>• Look for ways to increase income</p>
-                  <p>• Reduce the target amount if possible</p>
-                  <p>• Start with a smaller emergency fund first</p>
+                  <h3 className="font-semibold">How the numbers work</h3>
+                  <ol className="list-decimal space-y-2 pl-5">
+                    <li><strong>Amount still needed:</strong> {rupees.format(work.target)} target less {rupees.format(work.saved)} already saved leaves {rupees.format(outcome.remaining)}{outcome.remaining === 0 ? " to fund" : ""}.</li>
+                    <li><strong>Monthly target:</strong> Divide {rupees.format(outcome.remaining)} by {work.months} months. Rounded up to the next rupee, that’s {rupees.format(outcome.monthlyRequired)} a month.</li>
+                    <li><strong>Budget check:</strong> {rupees.format(work.income)} income less {rupees.format(work.expenses)} in bills leaves {rupees.format(outcome.available)} before saving.</li>
+                  </ol>
+                  {outcome.budgetGap > 0 && <p className="text-destructive">The plan is {rupees.format(outcome.budgetGap)} over the current budget each month.</p>}
+                  {outcome.remaining > 0 && outcome.monthsNeeded !== null && (
+                    <p>At this deposit amount, reaching the target takes {outcome.monthsNeeded} {outcome.monthsNeeded === 1 ? "month" : "months"} if you can maintain the deposits.</p>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <Button 
-              onClick={completeGame}
-              className="w-full btn-primary"
-            >
-              Complete Savings Plan
-            </Button>
+                <div className="space-y-2 border-t pt-4">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold"><SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Try a different plan</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" disabled={work.months >= 120} onClick={() => patch({ months: String(Math.min(120, work.months + 3)) })}>Add 3 months</Button>
+                    <Button variant="outline" size="sm" disabled={work.contribution === outcome.monthlyRequired}
+                      onClick={() => patch({ contribution: String(outcome.monthlyRequired) })}>Try the required deposit</Button>
+                  </div>
+                </div>
+              </>
+            ) : <p className="text-sm text-muted-foreground">Enter whole rupee amounts, a positive goal amount, and a timeline from 1 to 120 months.</p>}
           </CardContent>
         </Card>
-      )}
+      </div>
+
+      <Card className="shadow-warm">
+        <CardHeader><CardTitle>Check your understanding</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <fieldset disabled={reviewed} className="space-y-3">
+            <legend className="mb-3 font-semibold">What should you divide by the months left to find your monthly target?</legend>
+            <RadioGroup disabled={reviewed} value={answer} onValueChange={setAnswer}>
+              {question.map((item, index) => (
+                <Label key={item.label} htmlFor={`savings-choice-${index}`} className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 leading-relaxed">
+                  <RadioGroupItem id={`savings-choice-${index}`} value={String(index)} />
+                  {item.label}
+                </Label>
+              ))}
+            </RadioGroup>
+          </fieldset>
+          {reviewed ? (
+            <div aria-live="polite" className="space-y-3 rounded-lg border bg-muted/35 p-4 text-sm">
+              <p className="font-semibold">{answer === "1" ? "Correct choice" : "Review your choice"}</p>
+              <p><strong>Best answer:</strong> {question[1].label}</p>
+              <ul className="list-disc space-y-2 pl-5">
+                {question.map(item => <li key={item.label}><strong>{item.label}.</strong> {item.reason}</li>)}
+              </ul>
+              <Button variant="outline" size="sm" onClick={() => { setAnswer(""); setReviewed(false); }}>Try the question again</Button>
+            </div>
+          ) : <Button onClick={submitAnswer} disabled={!outcome || answer === ""}>Check answer</Button>}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default SavingsGoalGame;
+}

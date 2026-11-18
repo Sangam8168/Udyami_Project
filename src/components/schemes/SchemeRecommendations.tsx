@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSchemes } from "@/lib/schemes";
+import { fetchSchemePreferences } from "@/lib/schemePreferences";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,94 +8,140 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Users, Gift, BookOpen, Heart, Wheat, Building2, ExternalLink, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-interface Scheme {
-  id: string;
-  name: string;
-  ministry_department: string;
-  category: string;
-  state: string | null;
-  description: string;
-  eligibility_criteria: any;
-  benefits: string;
-  benefit_amount: string | null;
-  application_process: string;
-  official_link: string;
-  documents_required: string[];
-  application_deadline: string | null;
-}
+type ScoringCriteria = {
+  income_level?: string;
+  age_min?: number;
+  age_max?: number;
+  gender?: string;
+  occupation?: string;
+  location_type?: string;
+  education_level?: string;
+  family_size?: number;
+};
+
+// Helper function to check if occupations are related
+const areRelatedOccupations = (userOccupation: string, schemeOccupation: string): boolean => {
+  const relatedGroups = {
+    "Farmer": ["Daily Wage Laborer", "Self-employed"],
+    "Self-employed": ["Farmer", "Business Owner", "Daily Wage Laborer"],
+    "Business Owner": ["Self-employed"],
+    "Government Employee": ["Private Employee"],
+    "Private Employee": ["Government Employee"],
+    "Student": ["Unemployed"],
+    "Unemployed": ["Student", "Daily Wage Laborer"],
+    "Daily Wage Laborer": ["Farmer", "Self-employed", "Unemployed"],
+  };
+  
+  const related = relatedGroups[userOccupation as keyof typeof relatedGroups] || [];
+  return related.includes(schemeOccupation);
+};
 
 export function SchemeRecommendations() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const { data: recommendations, isLoading } = useQuery({
+  const { data: recommendations, isLoading, isError, refetch } = useQuery({
     queryKey: ["scheme-recommendations", user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      const preferences = await fetchSchemePreferences(user?.id);
+      if (!preferences) return null;
 
-      // Get user preferences
-      const { data: preferences } = await supabase
-        .from("user_scheme_preferences")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const schemes = await fetchSchemes({
+        categories: preferences.interested_categories ?? [],
+        state: preferences.state || undefined,
+        limit: 20,
+      });
 
-      if (!preferences) return [];
-
-      // Build query based on preferences
-      let query = supabase
-        .from("schemes")
-        .select("*")
-        .eq("is_active", true);
-
-      // Filter by interested categories
-      if (preferences.interested_categories && preferences.interested_categories.length > 0) {
-        query = query.in("category", preferences.interested_categories);
-      }
-
-      // Filter by state (include both state-specific and central schemes)
-      if (preferences.state) {
-        query = query.or(`state.eq.${preferences.state},state.is.null`);
-      }
-
-      const { data: schemes, error } = await query.limit(20);
-      if (error) throw error;
-
-      // Score schemes based on user profile
-      const scoredSchemes = schemes.map((scheme: Scheme) => {
+      // Score schemes based on user profile with enhanced algorithm
+      const scoredSchemes = schemes.map((scheme) => {
         let score = 0;
-        const criteria = scheme.eligibility_criteria || {};
+        const criteria = (scheme.eligibility_criteria ?? {}) as ScoringCriteria;
 
-        // Income level matching
+        // Income level matching (weighted more heavily)
         if (criteria.income_level && preferences.income_level) {
-          if (criteria.income_level === preferences.income_level) score += 30;
-          else if (criteria.income_level === "any" || preferences.income_level === "any") score += 15;
+          if (criteria.income_level === preferences.income_level) score += 35;
+          else if (criteria.income_level === "any") score += 20;
+          else if (preferences.income_level === "low" && criteria.income_level === "middle") score += 15;
+          else if (preferences.income_level === "middle" && criteria.income_level === "low") score += 10;
         }
 
-        // Age matching
+        // Age matching with proximity scoring
         if (criteria.age_min && criteria.age_max && preferences.age) {
           if (preferences.age >= criteria.age_min && preferences.age <= criteria.age_max) {
-            score += 25;
+            // Bonus for being in ideal age range
+            const midPoint = (criteria.age_min + criteria.age_max) / 2;
+            const distanceFromMid = Math.abs(preferences.age - midPoint);
+            const ageBonus = Math.max(15, 30 - distanceFromMid);
+            score += ageBonus;
+          } else if (preferences.age < criteria.age_min && (criteria.age_min - preferences.age) <= 5) {
+            // Close to minimum age
+            score += 10;
           }
         }
 
         // Gender matching
         if (criteria.gender && preferences.gender) {
-          if (criteria.gender === preferences.gender || criteria.gender === "any") score += 20;
+          if (criteria.gender === preferences.gender) score += 25;
+          else if (criteria.gender === "any") score += 15;
         }
 
-        // Occupation matching
+        // Occupation matching with related occupations
         if (criteria.occupation && preferences.occupation) {
-          if (criteria.occupation === preferences.occupation) score += 25;
+          if (criteria.occupation === preferences.occupation) score += 30;
+          else if (areRelatedOccupations(preferences.occupation, criteria.occupation)) score += 15;
         }
 
         // Location type matching
         if (criteria.location_type && preferences.location_type) {
-          if (criteria.location_type === preferences.location_type) score += 15;
+          if (criteria.location_type === preferences.location_type) score += 20;
+          else if (criteria.location_type === "any") score += 10;
         }
 
-        // Category preference boost
-        if (preferences.interested_categories?.includes(scheme.category)) {
+        // State preference boost (if state-specific and matches user state)
+        if (scheme.state && scheme.state === preferences.state) {
+          score += 25;
+        } else if (!scheme.state) {
+          // Central schemes get a boost as they're available to everyone
           score += 10;
+        }
+
+        // Category preference boost (higher weight for explicitly interested categories)
+        if (preferences.interested_categories?.includes(scheme.category)) {
+          score += 20;
+        }
+
+        // Deadline urgency - boost schemes with upcoming deadlines
+        if (scheme.application_deadline) {
+          const deadline = new Date(scheme.application_deadline);
+          const today = new Date();
+          const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysUntilDeadline > 0 && daysUntilDeadline <= 30) {
+            // Urgent deadline - boost score
+            score += Math.max(5, 20 - daysUntilDeadline / 2);
+          } else if (daysUntilDeadline > 30 && daysUntilDeadline <= 90) {
+            // Upcoming deadline - small boost
+            score += 5;
+          }
+        }
+
+        // Education level matching
+        if (criteria.education_level && preferences.education_level) {
+          const educationLevels = ["Below 10th", "10th Pass", "12th Pass", "Graduate", "Post Graduate", "Professional Degree"];
+          const userEduIndex = educationLevels.indexOf(preferences.education_level);
+          const requiredEduIndex = educationLevels.indexOf(criteria.education_level);
+          
+          if (userEduIndex >= requiredEduIndex) {
+            score += 15;
+          } else if (userEduIndex === requiredEduIndex - 1) {
+            score += 5; // Close to requirement
+          }
+        }
+
+        // Family size consideration for certain schemes
+        if (criteria.family_size && preferences.family_size) {
+          if (preferences.family_size <= criteria.family_size) {
+            score += 10;
+          }
         }
 
         return { ...scheme, score };
@@ -106,7 +153,7 @@ export function SchemeRecommendations() {
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
     },
-    enabled: !!user,
+    enabled: !authLoading,
   });
 
   const getCategoryIcon = (category: string) => {
@@ -157,6 +204,15 @@ export function SchemeRecommendations() {
     );
   }
 
+  if (isError && !recommendations) {
+    return (
+      <Card className="space-y-4 p-8 text-center" role="alert">
+        <p>Could not load recommendations.</p>
+        <Button variant="outline" onClick={() => refetch()}>Try again</Button>
+      </Card>
+    );
+  }
+
   if (!recommendations || recommendations.length === 0) {
     return (
       <Card className="text-center p-8">
@@ -164,7 +220,9 @@ export function SchemeRecommendations() {
           <Star className="h-12 w-12 text-muted-foreground mx-auto" />
           <h3 className="text-lg font-semibold">No Recommendations Available</h3>
           <p className="text-muted-foreground">
-            Please set your preferences to get personalized scheme recommendations.
+            {recommendations
+              ? "No schemes match your preferences. Try selecting more categories."
+              : "Set your preferences to get personalized scheme recommendations."}
           </p>
         </div>
       </Card>

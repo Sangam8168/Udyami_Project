@@ -1,190 +1,117 @@
-import { Link, useLocation, Outlet } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useState, type ReactNode } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { ArrowLeft, ChevronRight, Gift, LayoutDashboard, LogOut, Menu, MessageSquare, Settings, Shield, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { 
-  LayoutDashboard, 
-  Users, 
-  MessageSquare, 
-  Settings, 
-  Shield, 
-  LogOut,
-  ChevronRight,
-  Menu,
-  X
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
-interface AdminLayoutProps {
-  children?: React.ReactNode;
+const navItems = [
+  { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard", description: "Overview and analytics" },
+  { path: "/admin/users", icon: Users, label: "User Management", description: "Manage users and roles" },
+  { path: "/admin/conversations", icon: MessageSquare, label: "Conversations", description: "Monitor chatbot activity" },
+  { path: "/admin/schemes", icon: Gift, label: "Scheme Manager", description: "Manage government schemes" },
+  { path: "/admin/settings", icon: Settings, label: "Settings", description: "Configure the platform" },
+];
+
+function AdminNavigation({ email, onNavigate }: { email?: string; onNavigate?: () => void }) {
+  return (
+    <>
+      <nav aria-label="Admin navigation" className="flex-1 space-y-1 overflow-y-auto p-3">
+        {navItems.map(({ path, icon: Icon, label, description }) => (
+          <NavLink
+            key={path}
+            to={path}
+            onClick={onNavigate}
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 rounded-lg border border-transparent px-3 py-3 text-sm transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isActive ? "border-primary/25 bg-accent/60 text-accent-foreground" : "text-foreground hover:bg-muted",
+            )}
+          >
+            {({ isActive }) => (
+              <>
+                <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">{label}</div>
+                  <div className="text-xs text-muted-foreground">{description}</div>
+                </div>
+                {isActive && <ChevronRight className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="border-t p-3">
+        <div className="flex items-center gap-3 rounded-lg bg-secondary/60 p-3 text-secondary-foreground">
+          <Shield className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Admin account</p>
+            {email && <p className="truncate text-xs text-muted-foreground" title={email}>{email}</p>}
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
-const AdminLayout = ({ children }: AdminLayoutProps) => {
-  const location = useLocation();
+export default function AdminLayout({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  const currentPath = location.pathname;
-
-  const isActive = (path: string) => currentPath === path || currentPath.startsWith(path);
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  const navItems = [
-    {
-      path: "/admin/dashboard",
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      description: "Overview & Analytics"
-    },
-    {
-      path: "/admin/users",
-      icon: Users,
-      label: "User Management",
-      description: "Manage users & roles"
-    },
-    {
-      path: "/admin/conversations",
-      icon: MessageSquare,
-      label: "Conversations",
-      description: "Monitor chatbot activity"
-    },
-    {
-      path: "/admin/schemes",
-      icon: Shield,
-      label: "Scheme Manager",
-      description: "Manage government schemes"
-    },
-    {
-      path: "/admin/settings",
-      icon: Settings,
-      label: "Settings",
-      description: "System configuration"
-    }
-  ];
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800 shadow-lg">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden"
-              >
-                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </Button>
-              <Link to="/admin/dashboard" className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-                  <p className="text-xs text-slate-400">Udyami Administration</p>
-                </div>
-              </Link>
-            </div>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="border-b bg-card shadow-sm">
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open admin menu">
+                  <Menu aria-hidden="true" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="flex w-[min(22rem,88vw)] flex-col gap-0 bg-card p-0 lg:hidden" aria-describedby={undefined}>
+                <SheetHeader className="border-b px-4 py-5 text-left">
+                  <SheetTitle>Udyami Admin</SheetTitle>
+                </SheetHeader>
+                <AdminNavigation email={user?.email} onNavigate={() => setMenuOpen(false)} />
+              </SheetContent>
+            </Sheet>
+            <Link to="/admin/dashboard" className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary text-lg font-bold text-primary-foreground" aria-hidden="true">U</span>
+              <span className="flex flex-col">
+                <span className="font-semibold">Udyami Admin</span>
+                <span className="text-xs text-muted-foreground">प्रशासन</span>
+              </span>
+            </Link>
+          </div>
 
-            {/* User Actions */}
-            <div className="flex items-center space-x-3">
-              <Badge variant="destructive" className="hidden md:flex">
-                ADMIN
-              </Badge>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                size="sm"
-                className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">Sign Out</span>
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="hidden sm:inline-flex">Admin</Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/">
+                <ArrowLeft aria-hidden="true" />
+                Back to Main Site
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out">
+              <LogOut aria-hidden="true" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed lg:static inset-y-0 left-0 z-50
-            w-64 bg-slate-900 border-r border-slate-800
-            transform transition-transform duration-200 ease-in-out
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:translate-x-0
-            pt-20 lg:pt-0
-          `}
-        >
-          <nav className="p-4 space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg
-                    transition-all duration-200
-                    ${isActive(item.path)
-                      ? 'bg-red-600 text-white shadow-lg'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5" />
-                  <div className="flex-1">
-                    <div className="font-medium">{item.label}</div>
-                    <div className="text-xs opacity-70">{item.description}</div>
-                  </div>
-                  {isActive(item.path) && <ChevronRight className="w-4 h-4" />}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Sidebar Footer */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
-            <div className="bg-slate-800 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white">Admin User</div>
-                  <div className="text-xs text-slate-400">
-                    {user?.email?.slice(0, 20)}...
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-1">
+        <aside className="hidden w-64 shrink-0 flex-col border-r bg-card lg:flex">
+          <AdminNavigation email={user?.email} />
         </aside>
-
-        {/* Overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 min-h-screen bg-slate-950">
-          <div className="container mx-auto px-4 py-8">
-            {children || <Outlet />}
-          </div>
+        <main className="min-w-0 flex-1 bg-gradient-to-b from-accent/20 to-transparent px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {children ?? <Outlet />}
         </main>
       </div>
     </div>
   );
-};
-
-export default AdminLayout;
+}

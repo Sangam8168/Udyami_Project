@@ -80,8 +80,8 @@ const AdminAnalytics = () => {
       title: "Total Users",
       value: analytics.totalUsers,
       icon: Users,
-      color: "text-blue-400",
-      bgColor: "bg-blue-400/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
       trend: "+12%",
       trendUp: true
     },
@@ -89,8 +89,8 @@ const AdminAnalytics = () => {
       title: "Active Users",
       value: analytics.activeUsers,
       icon: Activity,
-      color: "text-green-400",
-      bgColor: "bg-green-400/10",
+      color: "text-success",
+      bgColor: "bg-success/15",
       trend: "+8%",
       trendUp: true
     },
@@ -98,8 +98,8 @@ const AdminAnalytics = () => {
       title: "Total Conversations",
       value: analytics.totalConversations,
       icon: MessageSquare,
-      color: "text-purple-400",
-      bgColor: "bg-purple-400/10",
+      color: "text-primary",
+      bgColor: "bg-accent",
       trend: "+23%",
       trendUp: true
     },
@@ -107,8 +107,8 @@ const AdminAnalytics = () => {
       title: "Flagged Messages",
       value: analytics.flaggedMessages,
       icon: Shield,
-      color: "text-red-400",
-      bgColor: "bg-red-400/10",
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
       trend: "-5%",
       trendUp: false
     },
@@ -116,8 +116,8 @@ const AdminAnalytics = () => {
       title: "Scheme Views",
       value: analytics.schemeViews,
       icon: Eye,
-      color: "text-yellow-400",
-      bgColor: "bg-yellow-400/10",
+      color: "text-primary",
+      bgColor: "bg-secondary",
       trend: "+15%",
       trendUp: true
     },
@@ -125,8 +125,8 @@ const AdminAnalytics = () => {
       title: "Games Played",
       value: analytics.gamesPlayed,
       icon: Clock,
-      color: "text-pink-400",
-      bgColor: "bg-pink-400/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
       trend: "+18%",
       trendUp: true
     }
@@ -135,7 +135,7 @@ const AdminAnalytics = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-slate-400">Loading analytics...</div>
+        <div className="text-muted-foreground">Loading analytics...</div>
       </div>
     );
   }
@@ -144,8 +144,8 @@ const AdminAnalytics = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Analytics Dashboard</h2>
-        <p className="text-slate-400">Real-time overview of platform activity</p>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Analytics Dashboard</h2>
+        <p className="text-muted-foreground">Real-time overview of platform activity</p>
       </div>
 
       {/* Stats Grid */}
@@ -153,9 +153,9 @@ const AdminAnalytics = () => {
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.title} className="bg-slate-900 border-slate-800">
+            <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-slate-300">
+                <CardTitle className="text-sm font-medium text-foreground">
                   {stat.title}
                 </CardTitle>
                 <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -164,16 +164,16 @@ const AdminAnalytics = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div className="text-3xl font-bold text-white">{stat.value}</div>
+                  <div className="text-3xl font-bold text-foreground">{stat.value}</div>
                   <Badge 
                     variant={stat.trendUp ? "default" : "destructive"}
-                    className={stat.trendUp ? "bg-green-600" : ""}
+                    className={stat.trendUp ? "bg-success/15 text-foreground" : ""}
                   >
                     <TrendingUp className={`w-3 h-3 mr-1 ${!stat.trendUp ? 'rotate-180' : ''}`} />
                     {stat.trend}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   vs last month
                 </p>
               </CardContent>
@@ -183,25 +183,25 @@ const AdminAnalytics = () => {
       </div>
 
       {/* Activity Chart Placeholder */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">Platform Activity</CardTitle>
+          <CardTitle className="text-foreground">Platform Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-center justify-center bg-slate-800/50 rounded-lg">
+          <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg">
             <div className="text-center">
-              <Activity className="w-12 h-12 text-slate-600 mx-auto mb-2" />
-              <p className="text-slate-400">Activity chart visualization</p>
-              <p className="text-sm text-slate-500">Integration with charting library recommended</p>
+              <Activity className="w-12 h-12 text-primary/65 mx-auto mb-2" />
+              <p className="text-muted-foreground">Activity chart visualization</p>
+              <p className="text-sm text-muted-foreground">Integration with charting library recommended</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Recent Activity */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">Recent Activity</CardTitle>
+          <CardTitle className="text-foreground">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -212,18 +212,18 @@ const AdminAnalytics = () => {
               { action: "New conversation started", time: "15 minutes ago", type: "chat" },
               { action: "Game completed: Budgeting Challenge", time: "20 minutes ago", type: "game" }
             ].map((activity, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+              <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className={`w-2 h-2 rounded-full ${
-                    activity.type === 'alert' ? 'bg-red-500' :
-                    activity.type === 'user' ? 'bg-blue-500' :
-                    activity.type === 'scheme' ? 'bg-green-500' :
-                    activity.type === 'chat' ? 'bg-purple-500' :
-                    'bg-yellow-500'
+                    activity.type === 'alert' ? 'bg-destructive' :
+                    activity.type === 'user' ? 'bg-primary' :
+                    activity.type === 'scheme' ? 'bg-success' :
+                    activity.type === 'chat' ? 'bg-primary/60' :
+                    'bg-accent-foreground/60'
                   }`} />
-                  <span className="text-slate-300">{activity.action}</span>
+                  <span className="text-foreground">{activity.action}</span>
                 </div>
-                <span className="text-sm text-slate-500">{activity.time}</span>
+                <span className="text-sm text-muted-foreground">{activity.time}</span>
               </div>
             ))}
           </div>
