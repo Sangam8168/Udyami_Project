@@ -40,39 +40,51 @@ export type Database = {
       }
       credit_assessments: {
         Row: {
+          annual_interest_rate: number | null
           created_at: string
-          credit_score: number
+          credit_score: number | null
+          estimated_emi: number | null
           existing_loans: number | null
           id: string
+          loan_amount: number | null
           monthly_expenses: number
           monthly_income: number
           recommendations: string | null
           risk_level: string
           savings: number
+          term_months: number | null
           user_id: string
         }
         Insert: {
+          annual_interest_rate?: number | null
           created_at?: string
-          credit_score: number
+          credit_score?: number | null
+          estimated_emi?: number | null
           existing_loans?: number | null
           id?: string
+          loan_amount?: number | null
           monthly_expenses: number
           monthly_income: number
           recommendations?: string | null
           risk_level: string
           savings: number
+          term_months?: number | null
           user_id: string
         }
         Update: {
+          annual_interest_rate?: number | null
           created_at?: string
-          credit_score?: number
+          credit_score?: number | null
+          estimated_emi?: number | null
           existing_loans?: number | null
           id?: string
+          loan_amount?: number | null
           monthly_expenses?: number
           monthly_income?: number
           recommendations?: string | null
           risk_level?: string
           savings?: number
+          term_months?: number | null
           user_id?: string
         }
         Relationships: []

@@ -251,16 +251,6 @@ const Profile = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-accent/30 rounded-lg">
                 <div>
-                  <h4 className="font-medium text-foreground">Completed Credit Assessment</h4>
-                  <p className="text-sm text-muted-foreground">Your credit score improved to 750</p>
-                </div>
-                <Badge variant="outline" className="bg-success text-success-foreground">
-                  2 days ago
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-accent/30 rounded-lg">
-                <div>
                   <h4 className="font-medium text-foreground">Played Budgeting Game</h4>
                   <p className="text-sm text-muted-foreground">Achieved high score in monthly budget challenge</p>
                 </div>

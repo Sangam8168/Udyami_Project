@@ -73,8 +73,8 @@ const AdminConversations = () => {
 
   if (!user || roleLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="text-white">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-foreground">Loading...</div>
       </div>
     );
   }
@@ -89,63 +89,63 @@ const AdminConversations = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Conversations</h2>
-            <p className="text-slate-400">Monitor chatbot conversations and activity</p>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Conversations</h2>
+            <p className="text-muted-foreground">Monitor chatbot conversations and activity</p>
           </div>
         </div>
 
         {/* Search */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardContent className="pt-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Search conversations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-800 border-slate-700 pl-10"
+                className="pl-10"
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Conversations List */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">
+            <CardTitle className="text-foreground">
               Recent Conversations ({filteredConversations.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="text-center py-12">
-                <div className="text-slate-400">Loading conversations...</div>
+                <div className="text-muted-foreground">Loading conversations...</div>
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="text-center py-12">
-                <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">No conversations found</p>
+                <MessageSquare className="w-12 h-12 text-primary/65 mx-auto mb-4" />
+                <p className="text-muted-foreground">No conversations found</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {filteredConversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className="p-4 bg-slate-800/50 rounded-lg border border-slate-700"
+                    className="p-4 bg-muted/50 rounded-lg border border-border"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm text-slate-400">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
                           User: {conv.user_id.slice(0, 8)}...
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-400">
+                        <span className="text-sm text-muted-foreground">
                           {new Date(conv.created_at).toLocaleString()}
                         </span>
                         {detectSuspiciousContent(conv.message) && (
-                          <Badge variant="destructive" className="bg-red-600">
+                          <Badge variant="destructive">
                             <AlertTriangle className="w-3 h-3 mr-1" />
                             Flagged
                           </Badge>
@@ -153,14 +153,14 @@ const AdminConversations = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="bg-slate-700/50 p-3 rounded-lg">
-                        <p className="text-sm text-slate-300">
-                          <span className="font-medium text-white">User:</span> {conv.message}
+                      <div className="bg-card p-3 rounded-lg">
+                        <p className="text-sm text-foreground">
+                          <span className="font-medium text-foreground">User:</span> {conv.message}
                         </p>
                       </div>
-                      <div className="bg-slate-700/50 p-3 rounded-lg">
-                        <p className="text-sm text-slate-300">
-                          <span className="font-medium text-white">Bot:</span> {conv.response}
+                      <div className="bg-card p-3 rounded-lg">
+                        <p className="text-sm text-foreground">
+                          <span className="font-medium text-foreground">Bot:</span> {conv.response}
                         </p>
                       </div>
                     </div>

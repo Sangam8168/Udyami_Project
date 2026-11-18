@@ -1,249 +1,150 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
+import { AlertTriangle, ArrowUpRight, Scan, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, Scan, AlertTriangle, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { analyzeFraud, checkFraudSignals, fraudCategoryLabel, fraudNextStep, type FraudResult } from "@/lib/fraudDetection";
 
-interface FraudDetectionResult {
-  isSuspicious: boolean;
-  confidence: number;
-  severity: 'low' | 'medium' | 'high';
-  reason: string;
-  category: string;
-}
-
-const FraudDetection = () => {
-  const { user, session } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+export default function FraudDetection() {
+  const { user, loading: authLoading } = useAuth();
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<FraudDetectionResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<FraudResult | null>(null);
+  const [requestedAi, setRequestedAi] = useState(false);
+  const pending = useRef(false);
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-    }
-  }, [user, navigate]);
+  const runCheck = async (useAi: boolean) => {
+    const text = message.trim();
+    if (!text || pending.current) return;
 
-  const analyzeMessage = async () => {
-    if (!message.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a message to analyze",
-        variant: "destructive",
-      });
+    setRequestedAi(useAi);
+    if (!useAi) {
+      setResult(checkFraudSignals(text));
       return;
     }
 
-    setLoading(true);
+    pending.current = true;
+    setAnalyzing(true);
     setResult(null);
-
     try {
-      const { data, error } = await supabase.functions.invoke('ml-fraud-detection', {
-        body: { message, language: 'english' },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setResult(data);
-    } catch (error) {
-      console.error('Fraud detection error:', error);
-      toast({
-        title: "Analysis Failed",
-        description: "Unable to analyze the message. Please try again.",
-        variant: "destructive",
-      });
+      setResult(await analyzeFraud(text));
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'destructive';
-      case 'medium': return 'secondary';
-      case 'low': return 'outline';
-      default: return 'outline';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'high': return <AlertTriangle className="w-4 h-4" />;
-      case 'medium': return <Shield className="w-4 h-4" />;
-      case 'low': return <CheckCircle className="w-4 h-4" />;
-      default: return <CheckCircle className="w-4 h-4" />;
+      pending.current = false;
+      setAnalyzing(false);
     }
   };
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center space-x-2 mb-4">
-              <Shield className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl font-bold">AI Fraud Detection</h1>
-            </div>
-            <p className="text-muted-foreground">
-              Use our advanced ML-powered system to analyze messages for potential fraud, scams, and suspicious content.
-            </p>
-          </div>
+      <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8 sm:py-12">
+        <header className="space-y-3">
+          <h1 className="flex items-center gap-3 text-3xl font-bold">
+            <Shield className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
+            AI Fraud Detection
+          </h1>
+          <p className="max-w-xl text-muted-foreground">
+            Check a message for signs of a UPI scam, phishing, fake support, or a suspicious payment request.
+          </p>
+        </header>
 
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Scan className="w-5 h-5" />
-                  Message Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="message" className="text-sm font-medium">
-                    Message to Analyze
-                  </label>
-                  <Textarea
-                    id="message"
-                    placeholder="Enter the message you want to analyze for fraud detection..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="min-h-[120px]"
-                  />
-                </div>
-                <Button 
-                  onClick={analyzeMessage} 
-                  disabled={loading || !message.trim()}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <>
-                      <Scan className="w-4 h-4 mr-2 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Scan className="w-4 h-4 mr-2" />
-                      Analyze Message
-                    </>
-                  )}
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Check a message</CardTitle>
+              <CardDescription>Paste an SMS, WhatsApp message, or email in English or Hindi. Leave out any personal details.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="message">Message</Label>
+                <Textarea
+                  id="message"
+                  placeholder="Paste the message here"
+                  value={message}
+                  maxLength={8_000}
+                  disabled={analyzing}
+                  onChange={(event) => {
+                    setMessage(event.target.value);
+                    setResult(null);
+                  }}
+                  className="min-h-40 resize-y"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {user && (
+                  <Button onClick={() => runCheck(true)} disabled={analyzing || !message.trim()}>
+                    <Scan className="h-4 w-4" aria-hidden="true" />
+                    {analyzing ? "Analyzing…" : "Analyze with AI"}
+                  </Button>
+                )}
+                <Button variant={user ? "outline" : "default"} onClick={() => runCheck(false)} disabled={analyzing || !message.trim()}>
+                  Check on this device
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+              {!authLoading && !user && (
+                <p className="text-sm text-muted-foreground"><Link to="/auth" className="underline underline-offset-4">Sign in</Link> to also run an AI analysis.</p>
+              )}
+            </CardContent>
+          </Card>
 
-            {result && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {getSeverityIcon(result.severity)}
-                    Analysis Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Status:</span>
-                        {result.isSuspicious ? (
-                          <Badge variant="destructive">Suspicious</Badge>
-                        ) : (
-                          <Badge variant="secondary">Clean</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Severity:</span>
-                        <Badge variant={getSeverityColor(result.severity)}>
-                          {result.severity.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Confidence:</span>
-                        <span className="text-sm">{result.confidence}%</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Category:</span>
-                        <span className="text-sm capitalize">{result.category}</span>
-                      </div>
-                    </div>
+          <Card aria-live="polite">
+            <CardHeader>
+              <CardTitle>Analysis results</CardTitle>
+              {result && (
+                <CardDescription>
+                  {result.source === "ai" ? "AI analysis and on-device checks" : requestedAi ? "AI unavailable. On-device checks completed." : "On-device checks"}
+                </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+              {result ? (
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={result.severity === "high" ? "destructive" : "secondary"}>
+                      {result.isSuspicious ? (result.severity === "high" ? "High risk" : "Suspicious") : "Unverified"}
+                    </Badge>
+                    {result.isSuspicious && <span className="text-sm font-medium">{fraudCategoryLabel(result.category)}</span>}
                   </div>
-
-                  <Alert className={result.isSuspicious ? "border-destructive" : "border-green-500"}>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Analysis:</strong> {result.reason}
-                    </AlertDescription>
-                  </Alert>
-
-                  {result.isSuspicious && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        <strong>Warning:</strong> This message contains patterns commonly associated with fraud or scams. 
-                        Please exercise caution and do not share personal information, OTP codes, or make financial transactions 
-                        based on this message.
-                      </AlertDescription>
-                    </Alert>
+                  {!result.signals.some(signal => signal.label === result.reason) && (
+                    <p className="text-sm">{result.reason}</p>
                   )}
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>How It Works</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="text-center space-y-2">
-                    <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                      <Scan className="w-6 h-6 text-primary" />
+                  {result.signals.length > 0 && (
+                    <div className="space-y-2">
+                      <h2 className="text-sm font-semibold">Signals found</h2>
+                      <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        {result.signals.map(signal => <li key={signal.label}>{signal.label}</li>)}
+                      </ul>
                     </div>
-                    <h3 className="font-semibold">AI Analysis</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Our ML model analyzes message patterns for fraud indicators
-                    </p>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                      <Shield className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="font-semibold">Risk Assessment</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Provides confidence scores and severity levels
-                    </p>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                      <AlertTriangle className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="font-semibold">Protection</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Helps you stay safe from phishing and scams
-                    </p>
+                  )}
+                  <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-sm">
+                    <h2 className="flex items-center gap-2 font-semibold">
+                      <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      What to do next
+                    </h2>
+                    <p>{fraudNextStep(result.category)}</p>
+                    {result.isSuspicious && (
+                      <p>
+                        If you already sent money, contact your bank and call <a className="font-medium underline" href="tel:1930">1930</a> in India, or{" "}
+                        <a className="inline-flex items-center gap-1 font-medium underline" href="https://cybercrime.gov.in/" target="_blank" rel="noreferrer">
+                          report online <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                        </a>.
+                      </p>
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {analyzing ? "Checking the message…" : "Results will show the warning signs and how to verify the message safely."}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>
   );
-};
-
-export default FraudDetection;
+}

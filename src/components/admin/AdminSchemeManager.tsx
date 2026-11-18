@@ -18,6 +18,7 @@ import {
   Plus, 
   Edit, 
   Trash2, 
+  RefreshCw,
   Eye,
   Shield,
   Calendar,
@@ -52,6 +53,7 @@ const AdminSchemeManager = () => {
   const [filterCategory, setFilterCategory] = useState("all");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingScheme, setEditingScheme] = useState<Scheme | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -232,6 +234,39 @@ const AdminSchemeManager = () => {
     });
   };
 
+  const updateGovernmentSchemes = async () => {
+    setIsUpdating(true);
+    try {
+      console.log('Calling fetch-government-schemes function...');
+      const { data, error } = await supabase.functions.invoke('fetch-government-schemes', {
+        body: { action: 'fetch' }
+      });
+
+      console.log('Function response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: data.message || "Government schemes updated successfully",
+      });
+      fetchSchemes();
+    } catch (error) {
+      console.error('Error updating government schemes:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        title: "Error",
+        description: `Failed to update government schemes: ${errorMessage}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const filteredSchemes = schemes.filter(scheme => {
     const matchesSearch = 
       scheme.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -245,7 +280,7 @@ const AdminSchemeManager = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-slate-400">Loading schemes...</div>
+        <div className="text-muted-foreground">Loading schemes...</div>
       </div>
     );
   }
@@ -253,25 +288,36 @@ const AdminSchemeManager = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Scheme Manager</h2>
-          <p className="text-slate-400">Manage government schemes and benefits</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Scheme Manager</h2>
+          <p className="text-muted-foreground">Manage government schemes and benefits</p>
         </div>
-        <Button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-red-600 hover:bg-red-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Scheme
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={updateGovernmentSchemes}
+            disabled={isUpdating}
+            variant="outline"
+
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isUpdating ? 'animate-spin' : ''}`} />
+            {isUpdating ? 'Updating...' : 'Update Government Schemes'}
+          </Button>
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Scheme
+          </Button>
+        </div>
       </div>
 
       {/* Add/Edit Form */}
       {(showAddForm || editingScheme) && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">
+            <CardTitle className="text-foreground">
               {editingScheme ? "Edit Scheme" : "Add New Scheme"}
             </CardTitle>
           </CardHeader>
@@ -285,7 +331,7 @@ const AdminSchemeManager = () => {
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
-                    className="bg-slate-800 border-slate-700"
+
                   />
                 </div>
                 <div>
@@ -295,7 +341,7 @@ const AdminSchemeManager = () => {
                     value={formData.name_hi}
                     onChange={(e) => setFormData({...formData, name_hi: e.target.value})}
                     required
-                    className="bg-slate-800 border-slate-700"
+
                   />
                 </div>
               </div>
@@ -306,7 +352,7 @@ const AdminSchemeManager = () => {
                   value={formData.category} 
                   onValueChange={(value) => setFormData({...formData, category: value})}
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -330,7 +376,7 @@ const AdminSchemeManager = () => {
                     value={formData.benefit_amount}
                     onChange={(e) => setFormData({...formData, benefit_amount: e.target.value})}
                     placeholder="e.g., ₹6,000 per year"
-                    className="bg-slate-800 border-slate-700"
+
                   />
                 </div>
                 <div>
@@ -340,7 +386,7 @@ const AdminSchemeManager = () => {
                     type="date"
                     value={formData.application_deadline}
                     onChange={(e) => setFormData({...formData, application_deadline: e.target.value})}
-                    className="bg-slate-800 border-slate-700"
+
                   />
                 </div>
               </div>
@@ -353,7 +399,7 @@ const AdminSchemeManager = () => {
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   required
                   rows={3}
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
 
@@ -365,7 +411,7 @@ const AdminSchemeManager = () => {
                   onChange={(e) => setFormData({...formData, description_hi: e.target.value})}
                   required
                   rows={3}
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
 
@@ -378,7 +424,7 @@ const AdminSchemeManager = () => {
                   required
                   rows={2}
                   placeholder="Who can apply..."
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
 
@@ -391,7 +437,7 @@ const AdminSchemeManager = () => {
                   required
                   rows={2}
                   placeholder="What beneficiaries receive..."
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
 
@@ -403,7 +449,7 @@ const AdminSchemeManager = () => {
                   value={formData.official_link}
                   onChange={(e) => setFormData({...formData, official_link: e.target.value})}
                   placeholder="https://..."
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
 
@@ -413,7 +459,7 @@ const AdminSchemeManager = () => {
                   value={formData.status} 
                   onValueChange={(value: 'active' | 'inactive' | 'archived') => setFormData({...formData, status: value})}
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -425,7 +471,7 @@ const AdminSchemeManager = () => {
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" className="bg-red-600 hover:bg-red-700">
+                <Button type="submit">
                   {editingScheme ? "Update Scheme" : "Add Scheme"}
                 </Button>
                 <Button 
@@ -451,7 +497,7 @@ const AdminSchemeManager = () => {
                       status: "active"
                     });
                   }}
-                  className="border-slate-700 text-slate-300"
+
                 >
                   Cancel
                 </Button>
@@ -462,23 +508,23 @@ const AdminSchemeManager = () => {
       )}
 
       {/* Filters */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder="Search schemes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-slate-800 border-slate-700 pl-10"
+                  className="pl-10"
                 />
               </div>
             </div>
             <div className="w-full md:w-48">
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="bg-slate-800 border-slate-700">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -497,32 +543,32 @@ const AdminSchemeManager = () => {
       {/* Schemes List */}
       <div className="grid gap-4">
         {filteredSchemes.length === 0 ? (
-          <Card className="bg-slate-900 border-slate-800">
+          <Card>
             <CardContent className="py-12 text-center">
-              <Shield className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400">No schemes found</p>
+              <Shield className="w-12 h-12 text-primary/65 mx-auto mb-4" />
+              <p className="text-muted-foreground">No schemes found</p>
             </CardContent>
           </Card>
         ) : (
           filteredSchemes.map((scheme) => (
-            <Card key={scheme.id} className="bg-slate-900 border-slate-800">
+            <Card key={scheme.id}>
               <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-white">{scheme.name}</h3>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{scheme.name}</h3>
                       <Badge 
                         variant={scheme.status === 'active' ? 'default' : 'secondary'}
-                        className={scheme.status === 'active' ? 'bg-green-600' : ''}
+                        className={scheme.status === 'active' ? 'bg-success/15 text-foreground' : ''}
                       >
                         {scheme.status}
                       </Badge>
-                      <Badge variant="outline" className="border-slate-700 text-slate-300">
+                      <Badge variant="outline">
                         {scheme.category}
                       </Badge>
                     </div>
-                    <p className="text-sm text-slate-400 mb-3">{scheme.description}</p>
-                    <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground mb-3">{scheme.description}</p>
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <DollarSign className="w-4 h-4" />
                         <span>{scheme.benefit_amount || "N/A"}</span>
@@ -533,12 +579,12 @@ const AdminSchemeManager = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleEditClick(scheme)}
-                      className="border-slate-700 text-slate-300 hover:bg-slate-800"
+
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -546,7 +592,7 @@ const AdminSchemeManager = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => window.open(scheme.official_link, '_blank')}
-                      className="border-slate-700 text-slate-300 hover:bg-slate-800"
+
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -554,7 +600,7 @@ const AdminSchemeManager = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDeleteScheme(scheme.id)}
-                      className="border-red-900 text-red-400 hover:bg-red-900/20"
+                      className="border-destructive/25 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

@@ -23,7 +23,7 @@ const Index = () => {
       id: "credit",
       title: "क्रेडिट मूल्यांकन",
       titleEn: "Credit Estimator",
-      description: "Check your creditworthiness based on your income, expenses, and savings. Understand your loan eligibility.",
+      description: "Estimate a monthly loan payment and see how it fits your household budget.",
       icon: Calculator,
     },
     {
@@ -141,7 +141,7 @@ const Index = () => {
               {selectedFeature === "credit" && (
                 <div className="space-y-4">
                   <p className="text-muted-foreground mb-6">
-                    Estimate your creditworthiness with our simple form. Get instant results in easy-to-understand language.
+                    See your estimated monthly EMI, total interest and the money left in your budget.
                   </p>
                   <div className="bg-accent/30 rounded-lg p-6">
                     <h4 className="font-semibold text-foreground mb-3">We'll Ask About:</h4>
@@ -149,14 +149,14 @@ const Index = () => {
                       <li>• Your monthly income</li>
                       <li>• Monthly expenses</li>
                       <li>• Current savings</li>
-                      <li>• Any existing loans</li>
+                      <li>• Current EMIs and the new loan terms</li>
                     </ul>
                   </div>
                   <Button 
                     onClick={() => navigate('/credit-estimator')}
                     className="mt-4"
                   >
-                    मूल्यांकन शुरू करें (Start Assessment)
+                    किस्त का अनुमान लगाएं (Estimate EMI)
                   </Button>
                 </div>
               )}

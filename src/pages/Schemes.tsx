@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSchemes } from "@/lib/schemes";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Search, Filter, Users, Gift, BookOpen, Heart, Wheat, Building2, ExternalLink } from "lucide-react";
 import { SchemePreferencesForm } from "@/components/schemes/SchemePreferencesForm";
 import { SchemeRecommendations } from "@/components/schemes/SchemeRecommendations";
-import { useAuth } from "@/hooks/useAuth";
 
 const CATEGORIES = [
   { value: "all", label: "All Categories", icon: Users },
@@ -31,53 +30,21 @@ const STATES = [
   "Uttar Pradesh", "Uttarakhand", "West Bengal"
 ];
 
-interface Scheme {
-  id: string;
-  name: string;
-  ministry_department: string;
-  category: string;
-  state: string | null;
-  description: string;
-  eligibility_criteria: any;
-  benefits: string;
-  benefit_amount: string | null;
-  application_process: string;
-  official_link: string;
-  documents_required: string[];
-  application_deadline: string | null;
-}
-
 export default function Schemes() {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedState, setSelectedState] = useState("all");
   const [showRecommendations, setShowRecommendations] = useState(false);
 
-  const { data: schemes, isLoading } = useQuery({
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+
+  const { data: schemes, isLoading, isError, refetch } = useQuery({
     queryKey: ["schemes", searchTerm, selectedCategory, selectedState],
-    queryFn: async () => {
-      let query = supabase
-        .from("schemes")
-        .select("*")
-        .eq("is_active", true);
-
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,ministry_department.ilike.%${searchTerm}%`);
-      }
-
-      if (selectedCategory !== "all") {
-        query = query.eq("category", selectedCategory);
-      }
-
-      if (selectedState !== "all") {
-        query = query.or(`state.eq.${selectedState},state.is.null`);
-      }
-
-      const { data, error } = await query.order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Scheme[];
-    },
+    queryFn: () => fetchSchemes({
+      search: searchTerm,
+      categories: selectedCategory === "all" ? [] : [selectedCategory],
+      state: selectedState === "all" ? undefined : selectedState,
+    }),
   });
 
   const getCategoryIcon = (category: string) => {
@@ -104,39 +71,42 @@ export default function Schemes() {
               Discover financial assistance, subsidies, and benefits from Government of India
             </p>
             
-            {user && (
-              <div className="flex justify-center gap-4 mb-6">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Users className="h-4 w-4" />
-                      Set Preferences
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Set Your Preferences</DialogTitle>
-                      <DialogDescription>
-                        Tell us about yourself to get personalized scheme recommendations
-                      </DialogDescription>
-                    </DialogHeader>
-                    <SchemePreferencesForm />
-                  </DialogContent>
-                </Dialog>
-                
-                <Button 
-                  onClick={() => setShowRecommendations(!showRecommendations)}
-                  className="gap-2"
-                >
-                  <Gift className="h-4 w-4" />
-                  {showRecommendations ? "Show All Schemes" : "Get Recommendations"}
-                </Button>
-              </div>
-            )}
+            <div className="mb-6 flex flex-wrap justify-center gap-4">
+              <Dialog open={preferencesOpen} onOpenChange={setPreferencesOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Set Preferences
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Set Your Preferences</DialogTitle>
+                    <DialogDescription>
+                      Tell us about yourself to get personalized scheme recommendations
+                    </DialogDescription>
+                  </DialogHeader>
+                  <SchemePreferencesForm
+                    onSaved={() => {
+                      setPreferencesOpen(false);
+                      setShowRecommendations(true);
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+              
+              <Button 
+                onClick={() => setShowRecommendations(!showRecommendations)}
+                className="gap-2"
+              >
+                <Gift className="h-4 w-4" />
+                {showRecommendations ? "Hide Recommendations" : "Get Recommendations"}
+              </Button>
+            </div>
           </div>
 
           {/* Recommendations Section */}
-          {user && showRecommendations && (
+          {showRecommendations && (
             <div className="mb-8">
               <SchemeRecommendations />
             </div>
@@ -191,7 +161,12 @@ export default function Schemes() {
           </div>
 
           {/* Schemes Grid */}
-          {isLoading ? (
+          {isError && !schemes ? (
+            <div className="space-y-4 py-12 text-center" role="alert">
+              <p>Could not load schemes.</p>
+              <Button variant="outline" onClick={() => refetch()}>Try again</Button>
+            </div>
+          ) : isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
                 <Card key={i} className="animate-pulse">

@@ -26,8 +26,8 @@ const AdminUsers = () => {
 
   if (!user || roleLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="text-white">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-foreground">Loading...</div>
       </div>
     );
   }

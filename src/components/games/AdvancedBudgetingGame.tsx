@@ -1,447 +1,151 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Trophy, Clock, Zap, Star } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import LearningQuiz, { type Level } from "./LearningQuiz";
 
-interface AdvancedBudgetingGameProps {
-  onComplete: (score: number) => void;
+const levels: Level[] = [
+  {
+    name: "Beginner", description: "Needs, monthly income, and savings goals", seconds: 45,
+    lessons: [
+      {
+        title: "Give every rupee a job",
+        scenario: "Meena pays her essential expenses first. She has already set aside the money she needs for other spending this month.",
+        facts: [{ label: "Take-home pay", value: "₹15,000" }, { label: "Essential expenses", value: "₹8,000" }, { label: "Other spending set aside", value: "₹2,000" }],
+        question: "How much can Meena put toward savings this month?",
+        hint: "Subtract both spending amounts from take-home pay.",
+        choices: [
+          { label: "₹7,000", reason: "This subtracts essentials and leaves out the ₹2,000 already set aside." },
+          { label: "₹5,000", reason: "Both planned expenses are covered, and the remaining money goes to savings." },
+          { label: "₹3,000", reason: "That would leave an additional ₹2,000 unassigned under this plan." },
+        ],
+        answer: 1,
+        steps: ["Add planned spending: ₹8,000 + ₹2,000 = ₹10,000.", "Subtract planned spending from take-home pay: ₹15,000 − ₹10,000 = ₹5,000."],
+        takeaway: "Use take-home income and count every planned expense before deciding what you can save.",
+      },
+      {
+        title: "Cover the essentials",
+        scenario: "Shanti has ₹3,000 until payday. Her groceries and bus fare for the week will cost ₹2,200. The ₹1,400 celebration outfit is optional.",
+        question: "Which plan covers the essentials and keeps some money available?",
+        hint: "Check how much remains after the ₹2,200 she's committed to spend.",
+        choices: [
+          { label: "Set aside ₹2,200 for essentials and keep ₹800", reason: "Groceries and travel are covered, and ₹800 remains for the next decision." },
+          { label: "Buy the outfit first and use the rest for essentials", reason: "The outfit leaves ₹1,600, which is ₹600 short of what she needs." },
+          { label: "Spend ₹1,500 on essentials and ₹1,500 on other things", reason: "The arbitrary split leaves her ₹700 short for groceries and travel." },
+        ],
+        answer: 0,
+        steps: ["Identify spending that cannot be postponed: ₹2,200.", "Subtract that amount from ₹3,000. The remaining ₹800 is less than the price of the outfit."],
+        takeaway: "Set aside enough for essential bills before deciding what to do with the remaining money.",
+      },
+      {
+        title: "Prepare for a school bill",
+        scenario: "Lata needs ₹12,000 for a school fee in six months. She has already saved ₹3,000 for that bill.",
+        question: "What is the smallest monthly amount that reaches the goal on time?",
+        hint: "Divide the amount still needed by six.",
+        choices: [
+          { label: "₹2,000 per month", reason: "This would reach the goal early or leave a surplus because it ignores savings already set aside." },
+          { label: "₹1,000 per month", reason: "Six deposits add ₹6,000 and leave her ₹3,000 short." },
+          { label: "₹1,500 per month", reason: "Six deposits add exactly the ₹9,000 she still needs." },
+        ],
+        answer: 2,
+        steps: ["Remaining fee: ₹12,000 − ₹3,000 = ₹9,000.", "Monthly contribution: ₹9,000 ÷ 6 = ₹1,500."],
+        takeaway: "Start with the gap between the goal and what you have already saved.",
+      },
+    ],
+  },
+  {
+    name: "Intermediate", description: "Variable income and spending trade-offs", seconds: 50,
+    lessons: [
+      {
+        title: "Budget for a lean month",
+        scenario: "Asha earned ₹20,000, ₹12,000 and ₹16,000 over three months. Her essential monthly bills are ₹10,000.",
+        question: "Which plan keeps essentials covered even if her income falls to ₹12,000 again?",
+        hint: "Plan what you can commit in the lean month before allocating money from better months.",
+        choices: [
+          { label: "Commit ₹16,000 every month", reason: "The average is ₹16,000, but a ₹12,000 month would leave a ₹4,000 gap." },
+          { label: "Keep regular commitments within ₹12,000 and set aside extra earnings", reason: "The lower example income covers the regular budget, and stronger months can build a buffer." },
+          { label: "Spend up to ₹20,000 and borrow when income falls", reason: "The highest month is a poor basis for recurring bills and leaves a large borrowing gap." },
+        ],
+        answer: 1,
+        steps: ["The leanest month in the example brought in ₹12,000.", "After ₹10,000 of essential bills, only ₹2,000 is available for other regular commitments in a lean month."],
+        takeaway: "Use a conservative income figure for recurring commitments when earnings fluctuate.",
+      },
+      {
+        title: "Make space for a payment",
+        scenario: "Rekha takes home ₹18,000, pays ₹12,000 in living expenses and already has a ₹2,000 EMI. She wants to keep at least ₹1,500 free each month.",
+        question: "What is the largest new EMI that leaves her chosen buffer?",
+        hint: "Subtract expenses, the existing EMI, and the buffer.",
+        choices: [
+          { label: "₹2,500", reason: "This leaves exactly ₹1,500 after both EMIs and living expenses." },
+          { label: "₹4,000", reason: "This uses the entire amount left after current bills and leaves no buffer." },
+          { label: "₹6,000", reason: "This subtracts only living expenses and ignores the existing EMI and buffer." },
+        ],
+        answer: 0,
+        steps: ["Current spare cash: ₹18,000 − ₹12,000 − ₹2,000 = ₹4,000.", "Leave ₹1,500 untouched. That makes ₹4,000 − ₹1,500 = ₹2,500 the limit for this exercise."],
+        takeaway: "An affordable payment depends on what is left after current bills and the buffer you choose.",
+      },
+      {
+        title: "Prioritise a nearer deadline",
+        scenario: "Farida can save ₹5,000 a month. She needs ₹9,000 for a course in three months and wants to put the rest toward equipment.",
+        question: "How should she split this month's ₹5,000 if she will repeat the same split for three months?",
+        hint: "What monthly contribution would reach ₹9,000 in three equal deposits?",
+        choices: [
+          { label: "₹2,000 for the course and ₹3,000 for equipment", reason: "The course fund would reach only ₹6,000 by the deadline." },
+          { label: "₹4,000 for the course and ₹1,000 for equipment", reason: "This covers the course, but allocates ₹1,000 more than necessary each month." },
+          { label: "₹3,000 for the course and ₹2,000 for equipment", reason: "This meets the nearer deadline and leaves the greatest amount for equipment under the stated plan." },
+        ],
+        answer: 2,
+        steps: ["Course target per month: ₹9,000 ÷ 3 = ₹3,000.", "Amount available for equipment each month: ₹5,000 − ₹3,000 = ₹2,000."],
+        takeaway: "Set deadlines first, then fund each goal at the pace its deadline requires.",
+      },
+    ],
+  },
+  {
+    name: "Advanced", description: "Cash-flow timing, loan costs, and changing prices", seconds: 60,
+    lessons: [
+      {
+        title: "Bridge a timing gap",
+        scenario: "A tailoring business pays ₹40,000 in supplier bills every month. Its ₹55,000 customer payment arrives one month after delivery. The first month's bills are due before any customer payment arrives.",
+        question: "How much working cash covers the first month's supplier bills without borrowing?",
+        hint: "Look at the cash available on the day the bills are due.",
+        choices: [
+          { label: "₹15,000", reason: "That is the difference between eventual receipts and supplier bills. It is not cash available before payment." },
+          { label: "₹40,000", reason: "The business needs enough cash to cover the supplier bill while it waits for the first payment." },
+          { label: "₹55,000", reason: "That is the eventual customer payment. The bill due first is ₹40,000." },
+        ],
+        answer: 1,
+        steps: ["On the due date, this sale has brought in ₹0 in cash.", "The supplier bill is ₹40,000, so the timing gap is ₹40,000 − ₹0."],
+        takeaway: "A profitable sale can still create a cash shortage when bills come due before payment arrives.",
+      },
+      {
+        title: "Compare full borrowing costs",
+        scenario: "Two hypothetical offers lend the same ₹30,000 for 12 months. Both have the same features, and both monthly payments fit the practice budget.",
+        facts: [{ label: "Offer A", value: "₹2,700 a month + ₹900 fee" }, { label: "Offer B", value: "₹2,750 a month + ₹0 fee" }],
+        question: "Which offer costs less overall?",
+        hint: "Multiply each monthly EMI by 12, then add its fee.",
+        choices: [
+          { label: "Offer B by ₹300", reason: "Offer B totals ₹33,000. Offer A totals ₹33,300 after including its fee." },
+          { label: "Offer A by ₹600", reason: "That compares the payments alone and leaves out Offer A’s ₹900 fee." },
+          { label: "They cost the same", reason: "The same loan amount and term can still produce different total repayment costs." },
+        ],
+        answer: 0,
+        steps: ["Offer A: ₹2,700 × 12 + ₹900 = ₹33,300.", "Offer B: ₹2,750 × 12 = ₹33,000. The difference is ₹300."],
+        takeaway: "Compare the total amount payable, including fees, when the offers meet the same need.",
+      },
+      {
+        title: "Update a goal when prices rise",
+        scenario: "A stove costs ₹20,000 today. For this practice scenario, assume its price will be 10% higher when you buy it in 10 months. You have ₹4,000 saved and expect no interest.",
+        question: "How much do you need to save each month under these assumptions?",
+        hint: "Apply the price increase before subtracting existing savings.",
+        choices: [
+          { label: "₹1,600", reason: "This divides today’s price minus existing savings. It leaves a ₹2,000 gap at the higher price." },
+          { label: "₹2,200", reason: "This uses the future price but omits the ₹4,000 already saved." },
+          { label: "₹1,800", reason: "This funds the remaining ₹18,000 evenly over 10 months." },
+        ],
+        answer: 2,
+        steps: ["Projected price: ₹20,000 + 10% of ₹20,000 = ₹22,000.", "Remaining amount: ₹22,000 − ₹4,000 = ₹18,000.", "Monthly target: ₹18,000 ÷ 10 = ₹1,800."],
+        takeaway: "Review the target price as the deadline approaches, especially if your plan spans many months.",
+      },
+    ],
+  },
+];
+
+export default function AdvancedBudgetingGame({ onComplete }: { onComplete: (score: number) => void }) {
+  return <LearningQuiz levels={levels} onComplete={onComplete} />;
 }
-
-const AdvancedBudgetingGame = ({ onComplete }: AdvancedBudgetingGameProps) => {
-  const [difficulty, setDifficulty] = useState<string | null>(null);
-  const [currentScenario, setCurrentScenario] = useState(0);
-  const [score, setScore] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [showResult, setShowResult] = useState(false);
-  const [gameCompleted, setGameCompleted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [timerActive, setTimerActive] = useState(false);
-  const [streak, setStreak] = useState(0);
-  const [achievements, setAchievements] = useState<string[]>([]);
-
-  const scenariosByDifficulty = {
-    beginner: [
-      {
-        id: 1,
-        title: "Basic Monthly Budget",
-        description: "Priya earns ₹15,000/month. Rent: ₹4,000, Food: ₹3,000, Utilities: ₹1,000. How much can she save for emergencies?",
-        options: [
-          { text: "₹7,000 (47%)", isCorrect: true, explanation: "Correct! After all expenses, ₹7,000 remains for savings and other needs." },
-          { text: "₹5,000 (33%)", isCorrect: false, explanation: "This leaves ₹2,000 unaccounted for." },
-          { text: "₹3,000 (20%)", isCorrect: false, explanation: "This is too conservative - more can be saved." },
-          { text: "₹1,000 (7%)", isCorrect: false, explanation: "This leaves most income unused." }
-        ],
-        tips: "Always calculate total expenses first, then see what's left.",
-        timeLimit: 45
-      },
-      {
-        id: 2,
-        title: "Emergency vs Wants",
-        description: "Meera has ₹8,000 extra. She wants new clothes (₹6,000) but has no emergency fund. What should she prioritize?",
-        options: [
-          { text: "Buy clothes - she needs them", isCorrect: false, explanation: "Wants should come after building emergency security." },
-          { text: "Save ₹6,000 emergency, ₹2,000 clothes", isCorrect: true, explanation: "Perfect! Priority to emergency fund while allowing some personal spending." },
-          { text: "Save all ₹8,000", isCorrect: false, explanation: "While safe, a small allowance for wants maintains balance." },
-          { text: "Buy clothes now, save next month", isCorrect: false, explanation: "Delaying emergency fund is risky." }
-        ],
-        tips: "Emergency funds protect against unexpected expenses.",
-        timeLimit: 45
-      },
-      {
-        id: 3,
-        title: "Festival Planning",
-        description: "Sunita needs ₹12,000 for Diwali in 6 months. Her income is ₹18,000/month. How much should she save monthly?",
-        options: [
-          { text: "₹1,000/month", isCorrect: false, explanation: "This only gives ₹6,000 - half of what's needed." },
-          { text: "₹2,000/month", isCorrect: true, explanation: "Perfect! ₹2,000 x 6 = ₹12,000, and it's only 11% of income." },
-          { text: "₹3,000/month", isCorrect: false, explanation: "This overshoots the target and may strain the budget." },
-          { text: "₹500/month", isCorrect: false, explanation: "This will only give ₹3,000 - far too little." }
-        ],
-        tips: "Divide target amount by number of months for monthly savings.",
-        timeLimit: 45
-      }
-    ],
-    intermediate: [
-      {
-        id: 4,
-        title: "Income Fluctuation Planning",
-        description: "Anjali's tailoring business earns ₹20,000 some months and ₹8,000 others. Average: ₹14,000. Her expenses are ₹10,000. How should she budget?",
-        options: [
-          { text: "Spend based on each month's income", isCorrect: false, explanation: "This creates instability in lean months." },
-          { text: "Budget ₹10,000 expenses, save excess in good months", isCorrect: true, explanation: "Smart! This ensures stability and builds reserves for lean months." },
-          { text: "Reduce expenses to ₹8,000 to be safe", isCorrect: false, explanation: "Too conservative given the average income." },
-          { text: "Take loan in lean months", isCorrect: false, explanation: "Loans cost interest and should be avoided if possible." }
-        ],
-        tips: "Variable income requires buffer savings for lean periods.",
-        timeLimit: 40
-      },
-      {
-        id: 5,
-        title: "Loan vs Savings Decision",
-        description: "Radha needs ₹50,000 for equipment. She has ₹30,000 saved. Bank loan: 12% interest. Should she take a ₹20,000 loan?",
-        options: [
-          { text: "Yes - keep savings for emergencies", isCorrect: true, explanation: "Correct! Maintaining emergency fund is crucial. ₹20,000 loan at 12% for 1 year = ₹2,400 interest, worth the security." },
-          { text: "No - use all savings to avoid interest", isCorrect: false, explanation: "This leaves no emergency buffer - risky!" },
-          { text: "Wait and save the full amount", isCorrect: false, explanation: "Delaying business opportunity has its own cost." },
-          { text: "Take ₹50,000 loan, keep all savings", isCorrect: false, explanation: "Unnecessarily high interest when you have savings." }
-        ],
-        tips: "Balance between using savings and maintaining emergency funds.",
-        timeLimit: 50
-      },
-      {
-        id: 6,
-        title: "Multiple Goals Prioritization",
-        description: "Kavita has ₹5,000 monthly surplus. Goals: Child education (₹200k), house (₹500k), retirement (₹1M). All are 10 years away. How to allocate?",
-        options: [
-          { text: "Focus all ₹5,000 on education first", isCorrect: false, explanation: "Putting all eggs in one basket delays other important goals." },
-          { text: "Split equally: ₹1,666 each to 3 goals", isCorrect: false, explanation: "Equal split ignores differing priorities and amounts." },
-          { text: "₹2,500 education, ₹1,500 house, ₹1,000 retirement", isCorrect: true, explanation: "Smart prioritization! Most urgent (education) gets highest allocation while others progress too." },
-          { text: "₹5,000 rotating between goals each month", isCorrect: false, explanation: "Inefficient - loses compound benefits and creates tracking complexity." }
-        ],
-        tips: "Prioritize based on timeline and importance, but don't neglect any major goal.",
-        timeLimit: 60
-      }
-    ],
-    advanced: [
-      {
-        id: 7,
-        title: "Inflation-Adjusted Planning",
-        description: "Education costs ₹100k today, growing 8% yearly. You need it in 5 years. With 10% annual returns, how much to invest monthly?",
-        options: [
-          { text: "₹1,667/month (₹100k ÷ 60 months)", isCorrect: false, explanation: "This ignores inflation! Future cost will be ~₹147k." },
-          { text: "₹2,000/month", isCorrect: false, explanation: "Close, but doesn't account for investment returns." },
-          { text: "₹1,900/month", isCorrect: true, explanation: "Correct! Accounts for both 8% inflation (future value ₹147k) and 10% returns on monthly investments." },
-          { text: "₹2,500/month to be safe", isCorrect: false, explanation: "Overly conservative - wastes money that could go to other goals." }
-        ],
-        tips: "Consider inflation and investment returns for long-term goals.",
-        timeLimit: 70
-      },
-      {
-        id: 8,
-        title: "Tax-Efficient Savings",
-        description: "Income ₹6L/year (30% tax bracket). Invest ₹1.5L in 80C (saves tax). PPF gives 7.1% tax-free. FD gives 6.5% taxable. Best option for ₹1.5L?",
-        options: [
-          { text: "FD - higher liquidity", isCorrect: false, explanation: "FD gives 6.5%, but after 30% tax = 4.55% effective return." },
-          { text: "PPF - tax benefits on investment + returns", isCorrect: true, explanation: "Brilliant! PPF: saves ₹45k tax (30% of 1.5L) + 7.1% tax-free returns = effective ~10% return!" },
-          { text: "Split between both equally", isCorrect: false, explanation: "Why dilute the superior tax-advantaged option?" },
-          { text: "Keep in savings account for emergencies", isCorrect: false, explanation: "Emergency fund is separate - this is investment money." }
-        ],
-        tips: "Tax-saving instruments can significantly boost effective returns.",
-        timeLimit: 60
-      },
-      {
-        id: 9,
-        title: "Business Cash Flow Management",
-        description: "Your business: ₹80k monthly revenue, ₹50k expenses. Customers pay 30 days late. Suppliers want immediate payment. What's your strategy?",
-        options: [
-          { text: "Take monthly loan to cover cash gap", isCorrect: false, explanation: "Constant borrowing creates expensive interest burden." },
-          { text: "Build ₹50k working capital buffer first", isCorrect: true, explanation: "Perfect! This buffer covers the payment lag, breaking the loan cycle." },
-          { text: "Ask suppliers to wait 30 days too", isCorrect: false, explanation: "May damage supplier relationships and creditworthiness." },
-          { text: "Reduce expenses to match cash flow", isCorrect: false, explanation: "Addresses symptom, not cause. May hurt business growth." }
-        ],
-        tips: "Working capital management is crucial for businesses with payment delays.",
-        timeLimit: 55
-      }
-    ]
-  };
-
-  const scenarios = difficulty ? scenariosByDifficulty[difficulty as keyof typeof scenariosByDifficulty] : [];
-
-  // Timer effect
-  useState(() => {
-    if (timerActive && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && timerActive) {
-      handleAnswerSelect(-1); // Time's up - wrong answer
-    }
-  });
-
-  const handleDifficultySelect = (diff: string) => {
-    setDifficulty(diff);
-    setTimerActive(true);
-    const firstScenario = scenariosByDifficulty[diff as keyof typeof scenariosByDifficulty][0];
-    setTimeLeft(firstScenario.timeLimit);
-  };
-
-  const handleAnswerSelect = (answerIndex: number) => {
-    if (showResult) return;
-    
-    setSelectedAnswer(answerIndex);
-    setShowResult(true);
-    setTimerActive(false);
-
-    const isCorrect = answerIndex >= 0 && scenarios[currentScenario].options[answerIndex].isCorrect;
-    
-    if (isCorrect) {
-      const baseScore = 1;
-      const timeBonus = timeLeft > 10 ? 0.5 : 0; // Bonus for quick answers
-      setScore(score + baseScore + timeBonus);
-      setStreak(streak + 1);
-      
-      // Check for achievements
-      if (streak + 1 === 3) {
-        setAchievements([...achievements, "🔥 Hot Streak!"]);
-      }
-      if (timeBonus > 0) {
-        setAchievements([...achievements, "⚡ Speed Demon!"]);
-      }
-    } else {
-      setStreak(0);
-    }
-  };
-
-  const handleNextScenario = () => {
-    if (currentScenario < scenarios.length - 1) {
-      setCurrentScenario(currentScenario + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
-      setTimerActive(true);
-      setTimeLeft(scenarios[currentScenario + 1].timeLimit);
-    } else {
-      setGameCompleted(true);
-      const maxPossibleScore = scenarios.length * 1.5; // Base + time bonuses
-      const finalScore = Math.round((score / maxPossibleScore) * 100);
-      onComplete(finalScore);
-    }
-  };
-
-  if (!difficulty) {
-    return (
-      <Card className="max-w-4xl mx-auto shadow-warm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl text-foreground">Choose Your Challenge Level</CardTitle>
-          <CardDescription>Select difficulty to begin your budgeting journey</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
-            <Card className="cursor-pointer hover:shadow-glow transition-smooth border-2 hover:border-primary" onClick={() => handleDifficultySelect('beginner')}>
-              <CardHeader>
-                <div className="text-3xl mb-2">🌱</div>
-                <CardTitle className="text-lg">Beginner</CardTitle>
-                <CardDescription>Basic budgeting concepts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">• Simple scenarios</p>
-                <p className="text-sm text-muted-foreground">• 45s per question</p>
-                <p className="text-sm text-muted-foreground">• 3 scenarios</p>
-              </CardContent>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow transition-smooth border-2 hover:border-primary" onClick={() => handleDifficultySelect('intermediate')}>
-              <CardHeader>
-                <div className="text-3xl mb-2">🎯</div>
-                <CardTitle className="text-lg">Intermediate</CardTitle>
-                <CardDescription>Real-world challenges</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">• Variable income</p>
-                <p className="text-sm text-muted-foreground">• 40-60s per question</p>
-                <p className="text-sm text-muted-foreground">• 3 scenarios</p>
-              </CardContent>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow transition-smooth border-2 hover:border-primary" onClick={() => handleDifficultySelect('advanced')}>
-              <CardHeader>
-                <div className="text-3xl mb-2">🏆</div>
-                <CardTitle className="text-lg">Advanced</CardTitle>
-                <CardDescription>Expert financial planning</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">• Inflation & taxes</p>
-                <p className="text-sm text-muted-foreground">• 55-70s per question</p>
-                <p className="text-sm text-muted-foreground">• 3 scenarios</p>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (gameCompleted) {
-    const maxPossibleScore = scenarios.length * 1.5;
-    const finalScore = Math.round((score / maxPossibleScore) * 100);
-    
-    return (
-      <Card className="max-w-4xl mx-auto shadow-warm">
-        <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-8 h-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl text-foreground">Challenge Complete!</CardTitle>
-          <CardDescription>बधाई हो! (Congratulations!)</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <div className="bg-gradient-subtle rounded-lg p-6 mb-6">
-            <div className="text-4xl font-bold text-primary mb-2">{finalScore}%</div>
-            <p className="text-muted-foreground">Your Budgeting Mastery Score</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Difficulty: <Badge variant="outline">{difficulty}</Badge>
-            </p>
-          </div>
-
-          {achievements.length > 0 && (
-            <div className="mb-6 p-4 bg-accent/30 rounded-lg">
-              <h4 className="font-semibold mb-2">Achievements Unlocked!</h4>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {achievements.map((achievement, idx) => (
-                  <Badge key={idx} className="text-sm">{achievement}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <div className="text-left space-y-3 mb-6">
-            <h4 className="font-semibold text-foreground">What you mastered:</h4>
-            <ul className="text-muted-foreground space-y-1 text-sm">
-              {difficulty === 'beginner' && (
-                <>
-                  <li>• Basic expense calculation and savings planning</li>
-                  <li>• Emergency fund prioritization</li>
-                  <li>• Planning for future expenses</li>
-                </>
-              )}
-              {difficulty === 'intermediate' && (
-                <>
-                  <li>• Managing variable income streams</li>
-                  <li>• Balancing loans vs savings decisions</li>
-                  <li>• Multi-goal financial planning</li>
-                </>
-              )}
-              {difficulty === 'advanced' && (
-                <>
-                  <li>• Inflation-adjusted goal planning</li>
-                  <li>• Tax-efficient investment strategies</li>
-                  <li>• Business cash flow management</li>
-                </>
-              )}
-            </ul>
-          </div>
-
-          <div className="flex space-x-4">
-            <Button onClick={() => window.location.reload()} variant="outline" className="flex-1">
-              Try Different Level
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const currentScene = scenarios[currentScenario];
-  const progress = ((currentScenario + 1) / scenarios.length) * 100;
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Progress and Stats Bar */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">
-              Scenario {currentScenario + 1} of {scenarios.length}
-            </span>
-            <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="flex items-center space-x-1">
-                <Star className="w-3 h-3" />
-                <span>Score: {score.toFixed(1)}</span>
-              </Badge>
-              {streak > 0 && (
-                <Badge className="bg-orange-500 flex items-center space-x-1">
-                  <Zap className="w-3 h-3" />
-                  <span>{streak} Streak</span>
-                </Badge>
-              )}
-              <Badge variant={timeLeft < 10 ? "destructive" : "outline"} className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
-                <span>{timeLeft}s</span>
-              </Badge>
-            </div>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </CardContent>
-      </Card>
-
-      {/* Current Scenario */}
-      <Card className="shadow-warm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl text-foreground">{currentScene.title}</CardTitle>
-            <Badge>{difficulty}</Badge>
-          </div>
-          <CardDescription className="text-base leading-relaxed">
-            {currentScene.description}
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="space-y-3">
-            {currentScene.options.map((option, index) => (
-              <Button
-                key={index}
-                onClick={() => handleAnswerSelect(index)}
-                disabled={showResult}
-                variant="outline"
-                className={`w-full text-left justify-start h-auto p-4 ${
-                  selectedAnswer === index 
-                    ? option.isCorrect 
-                      ? 'border-success bg-success/10' 
-                      : 'border-destructive bg-destructive/10'
-                    : 'hover:bg-accent/50'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span>{option.text}</span>
-                  {showResult && selectedAnswer === index && (
-                    option.isCorrect ? (
-                      <CheckCircle className="w-5 h-5 text-success" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-destructive" />
-                    )
-                  )}
-                </div>
-              </Button>
-            ))}
-          </div>
-
-          {showResult && selectedAnswer !== null && selectedAnswer >= 0 && (
-            <div className="mt-6 p-4 bg-accent/30 rounded-lg">
-              <h4 className="font-semibold text-foreground mb-2">Explanation:</h4>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-                {currentScene.options[selectedAnswer].explanation}
-              </p>
-              
-              <div className="bg-card rounded-lg p-3 mb-4">
-                <p className="text-sm text-muted-foreground">
-                  <strong>💡 Tip:</strong> {currentScene.tips}
-                </p>
-              </div>
-              
-              <Button 
-                onClick={handleNextScenario}
-                className="w-full"
-              >
-                {currentScenario < scenarios.length - 1 ? 'अगला प्रश्न (Next)' : 'परिणाम देखें (See Results)'}
-              </Button>
-            </div>
-          )}
-
-          {showResult && selectedAnswer === -1 && (
-            <div className="mt-6 p-4 bg-destructive/10 rounded-lg border border-destructive">
-              <p className="text-destructive font-semibold mb-2">⏰ Time's Up!</p>
-              <p className="text-sm text-muted-foreground mb-4">The correct answer was: {currentScene.options.find(o => o.isCorrect)?.text}</p>
-              <Button onClick={handleNextScenario} className="w-full">
-                {currentScenario < scenarios.length - 1 ? 'Continue' : 'See Results'}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default AdvancedBudgetingGame;

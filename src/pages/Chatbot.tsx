@@ -5,12 +5,13 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Mic, MicOff, Loader2, Shield, Languages } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Send, Bot, User, Mic, MicOff, Loader2, Languages, Volume2, VolumeX } from "lucide-react";
+import { checkFraudSignals } from "@/lib/fraudDetection";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { requestChatReply, type ChatLanguage } from "@/lib/financialChat";
 
 interface Message {
   id: string;
@@ -20,21 +21,24 @@ interface Message {
 }
 
 const Chatbot = () => {
-  const [language, setLanguage] = useState<'hindi' | 'english' | 'both'>('both');
+  const [language, setLanguage] = useState<ChatLanguage>("both");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const pendingSend = useRef(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { user, session } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isRecording, isProcessing, startRecording, stopRecording } = useVoiceRecording();
+  const { isSpeaking, isEnabled: ttsEnabled, speak, toggleEnabled: toggleTTS } = useTextToSpeech();
 
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true });
     }
-  }, [user, navigate]);
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     // Set welcome message based on language
@@ -44,12 +48,12 @@ const Chatbot = () => {
       both: "नमस्ते! मैं Udyami की AI असिस्टेंट हूं। मैं आपकी वित्तीय शिक्षा में मदद कर सकती हूं। (Hello! I am Udyami's AI assistant. I can help with your financial education.)"
     };
 
-    setMessages([{
+    setMessages(([welcome, ...conversation]) => [{
       id: "welcome",
       text: welcomeMessages[language],
       isUser: false,
-      timestamp: new Date(),
-    }]);
+      timestamp: welcome?.timestamp ?? new Date(),
+    }, ...conversation]);
   }, [language]);
 
   useEffect(() => {
@@ -57,7 +61,7 @@ const Chatbot = () => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   const handleVoiceInput = async () => {
     if (isRecording) {
@@ -74,196 +78,62 @@ const Chatbot = () => {
     }
   };
 
-  const detectMLFraud = async (message: string): Promise<{ isSuspicious: boolean; reason?: string; severity: 'low' | 'medium' | 'high'; confidence?: number; category?: string }> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('ml-fraud-detection', {
-        body: { message, language },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-      });
+  const sendMessage = async () => {
+    const message = inputMessage.trim();
+    if (!message || !user || pendingSend.current) return;
 
-      if (error) {
-        console.error('ML fraud detection error:', error);
-        return detectFraudFallback(message);
-      }
-
-      return {
-        isSuspicious: data.isSuspicious,
-        reason: data.reason,
-        severity: data.severity,
-        confidence: data.confidence,
-        category: data.category
-      };
-    } catch (error) {
-      console.error('ML fraud detection failed:', error);
-      return detectFraudFallback(message);
-    }
-  };
-
-  const detectFraudFallback = (message: string): { isSuspicious: boolean; reason?: string; severity: 'low' | 'medium' | 'high' } => {
-    const lowerMessage = message.toLowerCase();
-    
-    // High severity fraud indicators
-    const highRiskKeywords = [
-      'send money now', 'urgent payment', 'bank account details', 'share otp', 'share pin',
-      'lottery winner', 'congratulations you won', 'claim prize', 'government grant',
-      'तुरंत पैसे भेजें', 'बैंक अकाउंट डिटेल', 'ओटीपी शेयर', 'पिन शेयर', 'लॉटरी जीती'
-    ];
-    
-    // Medium severity suspicious patterns
-    const mediumRiskKeywords = [
-      'quick money', 'easy profit', 'guaranteed returns', 'no risk investment',
-      'आसान पैसा', 'गारंटी रिटर्न', 'जल्दी पैसा', 'रिस्क फ्री'
-    ];
-    
-    // Pattern detection
-    const suspiciousPatterns = [
-      /\b\d{10,16}\b/, // Potential phone numbers or account numbers
-      /https?:\/\/[^\s]+/i, // URLs
-      /\b\d{4}\b.*\b\d{4}\b/, // OTP-like patterns
-      /call.*\d{10}/, // Phone number with call instruction
-      /click.*link/, // Suspicious link requests
-    ];
-    
-    // Check high risk keywords
-    for (const keyword of highRiskKeywords) {
-      if (lowerMessage.includes(keyword)) {
-        return { 
-          isSuspicious: true, 
-          reason: `Contains high-risk fraud indicator: "${keyword}"`,
-          severity: 'high'
-        };
-      }
-    }
-    
-    // Check medium risk keywords
-    for (const keyword of mediumRiskKeywords) {
-      if (lowerMessage.includes(keyword)) {
-        return { 
-          isSuspicious: true, 
-          reason: `Contains medium-risk suspicious content: "${keyword}"`,
-          severity: 'medium'
-        };
-      }
-    }
-    
-    // Check suspicious patterns
-    for (const pattern of suspiciousPatterns) {
-      if (pattern.test(message)) {
-        return { 
-          isSuspicious: true, 
-          reason: "Contains suspicious patterns (phone numbers, URLs, or sensitive data)",
-          severity: 'medium'
-        };
-      }
-    }
-    
-    return { isSuspicious: false, severity: 'low' };
-  };
-
-  const sendMessage = async (messageText?: string) => {
-    const textToSend = messageText || inputMessage;
-    if (!textToSend.trim() || loading) return;
-
-    // ML-powered fraud detection with fallback
-    const fraudCheck = await detectMLFraud(textToSend);
-    if (fraudCheck.isSuspicious) {
-      const severityIcons = {
-        low: "⚠️",
-        medium: "🛡️", 
-        high: "🚨"
-      };
-      
-      const severityMessages = {
-        low: "Advisory",
-        medium: "Security Warning",
-        high: "High Risk Alert"
-      };
-
-      const confidenceText = fraudCheck.confidence ? ` (Confidence: ${fraudCheck.confidence}%)` : '';
-      const categoryText = fraudCheck.category ? ` Category: ${fraudCheck.category}` : '';
-      
-      toast({
-        title: `${severityIcons[fraudCheck.severity]} ${severityMessages[fraudCheck.severity]}`,
-        description: `${fraudCheck.reason}${confidenceText}${categoryText}`,
-        variant: fraudCheck.severity === 'high' ? "destructive" : "default",
-      });
-      
-      // For high severity, block the message completely
-      if (fraudCheck.severity === 'high') {
-        return;
-      }
-      
-      // For medium/low severity, show warning but allow message after 2 seconds
-      if (fraudCheck.severity === 'medium') {
-        setTimeout(() => {
-          toast({
-            title: "Proceeding with caution",
-            description: "Message will be processed but flagged for review.",
-            variant: "default",
-          });
-        }, 2000);
-      }
-    }
+    pendingSend.current = true;
+    setLoading(true);
+    setSendError("");
 
     const userMessage: Message = {
-      id: Date.now().toString(),
-      text: textToSend,
+      id: crypto.randomUUID(),
+      text: message,
       isUser: true,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage("");
-    setLoading(true);
-
+    let reply: string;
     try {
-      const { data, error } = await supabase.functions.invoke('financial-chatbot', {
-        body: { message: textToSend, language },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-      });
+      const fraudCheck = checkFraudSignals(message);
+      if (fraudCheck.isSuspicious) {
+        toast({
+          title: fraudCheck.severity === "high" ? "High Risk Alert" : "Security Warning",
+          description: fraudCheck.reason,
+          variant: fraudCheck.severity === "high" ? "destructive" : "default",
+        });
+        if (fraudCheck.severity === "high") return;
+      }
 
-      if (error) throw error;
-
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.response,
+      setMessages(prev => [...prev, userMessage]);
+      reply = await requestChatReply(message, language);
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        text: reply,
         isUser: false,
         timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, botMessage]);
+      }]);
+      setInputMessage("");
     } catch (error) {
-      console.error('Error sending message:', error);
-      let errorMessage = "Failed to send message. Please try again.";
-      
-      // Add more specific error handling
-      if (error instanceof Error) {
-        console.error('Detailed error:', error.message, error.stack);
-        if (error.message.includes('Edge Function returned a non-2xx status code')) {
-          errorMessage = "Chat service is temporarily unavailable. Please try again in a moment.";
-        }
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      setMessages(prev => prev.filter(entry => entry.id !== userMessage.id));
+      setSendError(error instanceof Error ? error.message : "Could not send your message. Please try again.");
+      return;
+    } finally {
+      pendingSend.current = false;
+      setLoading(false);
     }
 
-    setLoading(false);
+    if (ttsEnabled) speak(reply, language === "hindi" ? "hi-IN" : "en-US");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       sendMessage();
     }
   };
+
+  if (authLoading) return <Layout><p role="status" className="p-6">Loading chatbot…</p></Layout>;
 
   if (!user) {
     return null;
@@ -281,7 +151,7 @@ const Chatbot = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Languages className="w-4 h-4" />
-                <Select value={language} onValueChange={(value: 'hindi' | 'english' | 'both') => setLanguage(value)}>
+                <Select value={language} onValueChange={(value: ChatLanguage) => setLanguage(value)}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -291,12 +161,21 @@ const Chatbot = () => {
                     <SelectItem value="both">Both</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleTTS}
+                  className={isSpeaking ? "text-primary" : ""}
+                  title={ttsEnabled ? "Disable audio responses" : "Enable audio responses"}
+                >
+                  {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </Button>
               </div>
             </CardTitle>
           </CardHeader>
           
           <CardContent className="flex-1 flex flex-col p-0">
-            <ScrollArea className="flex-1 p-4 max-h-96" ref={scrollAreaRef}>
+            <div className="max-h-96 min-h-0 flex-1 overflow-y-auto p-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div
@@ -314,9 +193,22 @@ const Chatbot = () => {
                         {!message.isUser && <Bot className="w-4 h-4 mt-1 flex-shrink-0" />}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
-                          <span className="text-xs opacity-70">
-                            {message.timestamp.toLocaleTimeString()}
-                          </span>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs opacity-70">
+                              {message.timestamp.toLocaleTimeString()}
+                            </span>
+                            {!message.isUser && ttsEnabled && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 ml-2"
+                                onClick={() => speak(message.text, language === 'hindi' ? 'hi-IN' : 'en-US')}
+                                title="Replay audio"
+                              >
+                                <Volume2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         {message.isUser && <User className="w-4 h-4 mt-1 flex-shrink-0" />}
                       </div>
@@ -338,9 +230,10 @@ const Chatbot = () => {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
             
             <div className="p-4 border-t">
+              {sendError && <p role="alert" className="mb-3 text-sm text-destructive">{sendError}</p>}
               <div className="flex space-x-2">
                 <Input
                   placeholder={
@@ -349,11 +242,9 @@ const Chatbot = () => {
                     "अपना सवाल यहाँ लिखें... (Type your question here...)"
                   }
                   value={inputMessage}
-                  onChange={(e) => {
-                    console.log('Input changed:', e.target.value);
-                    setInputMessage(e.target.value);
-                  }}
-                  onKeyPress={handleKeyPress}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  maxLength={8_000}
                   disabled={loading || isProcessing}
                   className="flex-1"
                 />
@@ -372,7 +263,8 @@ const Chatbot = () => {
                   )}
                 </Button>
                 <Button 
-                  onClick={() => sendMessage()} 
+                  onClick={sendMessage}
+                  aria-label="Send message"
                   disabled={loading || !inputMessage.trim() || isProcessing}
                   size="icon"
                 >

@@ -100,16 +100,16 @@ const AdminSettings = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Settings</h2>
-          <p className="text-slate-400">Configure system settings and preferences</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Settings</h2>
+          <p className="text-muted-foreground">Configure system settings and preferences</p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={handleReset}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Reset
@@ -117,7 +117,7 @@ const AdminSettings = () => {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-red-600 hover:bg-red-700"
+
           >
             <Save className="w-4 h-4 mr-2" />
             {saving ? "Saving..." : "Save Changes"}
@@ -127,9 +127,9 @@ const AdminSettings = () => {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* General Settings */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Settings className="w-5 h-5" />
               General Settings
             </CardTitle>
@@ -141,7 +141,7 @@ const AdminSettings = () => {
                 id="siteName"
                 value={settings.siteName}
                 onChange={(e) => setSettings({...settings, siteName: e.target.value})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
             <div>
@@ -151,13 +151,13 @@ const AdminSettings = () => {
                 value={settings.siteDescription}
                 onChange={(e) => setSettings({...settings, siteDescription: e.target.value})}
                 rows={3}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label>Maintenance Mode</Label>
-                <p className="text-sm text-slate-400">Disable the site for maintenance</p>
+                <p className="text-sm text-muted-foreground">Disable the site for maintenance</p>
               </div>
               <Switch
                 checked={settings.maintenanceMode}
@@ -168,9 +168,9 @@ const AdminSettings = () => {
         </Card>
 
         {/* Notification Settings */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Bell className="w-5 h-5" />
               Notification Settings
             </CardTitle>
@@ -179,7 +179,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Email Notifications</Label>
-                <p className="text-sm text-slate-400">Send email notifications to users</p>
+                <p className="text-sm text-muted-foreground">Send email notifications to users</p>
               </div>
               <Switch
                 checked={settings.emailNotifications}
@@ -189,7 +189,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Push Notifications</Label>
-                <p className="text-sm text-slate-400">Enable browser push notifications</p>
+                <p className="text-sm text-muted-foreground">Enable browser push notifications</p>
               </div>
               <Switch
                 checked={settings.pushNotifications}
@@ -199,7 +199,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Admin Alerts</Label>
-                <p className="text-sm text-slate-400">Receive alerts for suspicious activity</p>
+                <p className="text-sm text-muted-foreground">Receive alerts for suspicious activity</p>
               </div>
               <Switch
                 checked={settings.adminAlerts}
@@ -210,9 +210,9 @@ const AdminSettings = () => {
         </Card>
 
         {/* Security Settings */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Shield className="w-5 h-5" />
               Security Settings
             </CardTitle>
@@ -221,7 +221,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Two-Factor Authentication</Label>
-                <p className="text-sm text-slate-400">Require 2FA for admin accounts</p>
+                <p className="text-sm text-muted-foreground">Require 2FA for admin accounts</p>
               </div>
               <Switch
                 checked={settings.twoFactorAuth}
@@ -235,7 +235,7 @@ const AdminSettings = () => {
                 type="number"
                 value={settings.sessionTimeout}
                 onChange={(e) => setSettings({...settings, sessionTimeout: parseInt(e.target.value)})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
             <div>
@@ -245,16 +245,16 @@ const AdminSettings = () => {
                 type="number"
                 value={settings.maxLoginAttempts}
                 onChange={(e) => setSettings({...settings, maxLoginAttempts: parseInt(e.target.value)})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Email Configuration */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Mail className="w-5 h-5" />
               Email Configuration
             </CardTitle>
@@ -268,7 +268,7 @@ const AdminSettings = () => {
                   value={settings.smtpHost}
                   onChange={(e) => setSettings({...settings, smtpHost: e.target.value})}
                   placeholder="smtp.example.com"
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
               <div>
@@ -277,7 +277,7 @@ const AdminSettings = () => {
                   id="smtpPort"
                   value={settings.smtpPort}
                   onChange={(e) => setSettings({...settings, smtpPort: e.target.value})}
-                  className="bg-slate-800 border-slate-700"
+
                 />
               </div>
             </div>
@@ -287,7 +287,7 @@ const AdminSettings = () => {
                 id="smtpUser"
                 value={settings.smtpUser}
                 onChange={(e) => setSettings({...settings, smtpUser: e.target.value})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
             <div>
@@ -297,16 +297,16 @@ const AdminSettings = () => {
                 type="email"
                 value={settings.smtpFrom}
                 onChange={(e) => setSettings({...settings, smtpFrom: e.target.value})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Feature Settings */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Database className="w-5 h-5" />
               Feature Settings
             </CardTitle>
@@ -315,7 +315,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Enable Chatbot</Label>
-                <p className="text-sm text-slate-400">Enable AI chatbot feature</p>
+                <p className="text-sm text-muted-foreground">Enable AI chatbot feature</p>
               </div>
               <Switch
                 checked={settings.enableChatbot}
@@ -325,7 +325,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Enable Fraud Detection</Label>
-                <p className="text-sm text-slate-400">Enable fraud message detection</p>
+                <p className="text-sm text-muted-foreground">Enable fraud message detection</p>
               </div>
               <Switch
                 checked={settings.enableFraudDetection}
@@ -335,7 +335,7 @@ const AdminSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Enable Games</Label>
-                <p className="text-sm text-slate-400">Enable educational games</p>
+                <p className="text-sm text-muted-foreground">Enable educational games</p>
               </div>
               <Switch
                 checked={settings.enableGames}
@@ -349,16 +349,16 @@ const AdminSettings = () => {
                 type="number"
                 value={settings.maxConversationsPerDay}
                 onChange={(e) => setSettings({...settings, maxConversationsPerDay: parseInt(e.target.value)})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Contact Information */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">Contact Information</CardTitle>
+            <CardTitle className="text-foreground">Contact Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -368,7 +368,7 @@ const AdminSettings = () => {
                 type="email"
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({...settings, supportEmail: e.target.value})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
             <div>
@@ -377,7 +377,7 @@ const AdminSettings = () => {
                 id="supportPhone"
                 value={settings.supportPhone}
                 onChange={(e) => setSettings({...settings, supportPhone: e.target.value})}
-                className="bg-slate-800 border-slate-700"
+
               />
             </div>
           </CardContent>

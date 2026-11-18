@@ -43,7 +43,7 @@ const Layout = ({ children }: LayoutProps) => {
                     {isAdmin ? "Admin Panel" : "Udyami"}
                   </h1>
                   {isAdmin && (
-                    <Badge variant="destructive" className="text-xs">
+                    <Badge variant="secondary" className="text-xs">
                       ADMIN
                     </Badge>
                   )}
@@ -68,8 +68,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/admin/dashboard"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/admin/dashboard") 
-                        ? "bg-red-600 text-white" 
-                        : "text-foreground hover:bg-slate-100 hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
                     <Home className="w-4 h-4" />
@@ -79,8 +79,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/admin/users"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/admin/users") 
-                        ? "bg-red-600 text-white" 
-                        : "text-foreground hover:bg-slate-100 hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
                     <User className="w-4 h-4" />
@@ -90,8 +90,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/admin/conversations"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/admin/conversations") 
-                        ? "bg-red-600 text-white" 
-                        : "text-foreground hover:bg-slate-100 hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -101,8 +101,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/admin/schemes"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/admin/schemes") 
-                        ? "bg-red-600 text-white" 
-                        : "text-foreground hover:bg-slate-100 hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
                     <Gift className="w-4 h-4" />
@@ -112,8 +112,8 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/admin/settings"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/admin/settings") 
-                        ? "bg-red-600 text-white" 
-                        : "text-foreground hover:bg-slate-100 hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
                     <Settings className="w-4 h-4" />
@@ -127,7 +127,7 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/") 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -138,7 +138,7 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/chatbot"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/chatbot") 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -149,7 +149,7 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/schemes"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/schemes") 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -160,7 +160,7 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/about"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/about") 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -180,7 +180,7 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/profile"
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-smooth ${
                       isActive("/profile") 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -221,8 +221,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/admin/dashboard"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/admin/dashboard") 
-                      ? "bg-red-600 text-white" 
-                      : "text-foreground hover:bg-slate-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent"
                   }`}
                 >
                   <Home className="w-4 h-4" />
@@ -232,8 +232,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/admin/users"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/admin/users") 
-                      ? "bg-red-600 text-white" 
-                      : "text-foreground hover:bg-slate-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent"
                   }`}
                 >
                   <User className="w-4 h-4" />
@@ -243,8 +243,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/admin/conversations"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/admin/conversations") 
-                      ? "bg-red-600 text-white" 
-                      : "text-foreground hover:bg-slate-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent"
                   }`}
                 >
                   <MessageCircle className="w-4 h-4" />
@@ -254,8 +254,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/admin/schemes"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/admin/schemes") 
-                      ? "bg-red-600 text-white" 
-                      : "text-foreground hover:bg-slate-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent"
                   }`}
                 >
                   <Gift className="w-4 h-4" />
@@ -265,8 +265,8 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/admin/settings"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/admin/settings") 
-                      ? "bg-red-600 text-white" 
-                      : "text-foreground hover:bg-slate-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent"
                   }`}
                 >
                   <Settings className="w-4 h-4" />
@@ -280,7 +280,7 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/") 
-                      ? "bg-primary text-primary-foreground" 
+                      ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent"
                   }`}
                 >
@@ -291,7 +291,7 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/chatbot"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/chatbot") 
-                      ? "bg-primary text-primary-foreground" 
+                      ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent"
                   }`}
                 >
@@ -302,7 +302,7 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/schemes"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/schemes") 
-                      ? "bg-primary text-primary-foreground" 
+                      ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent"
                   }`}
                 >
@@ -313,7 +313,7 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/about"
                   className={`flex flex-col items-center px-3 py-2 rounded-lg transition-smooth ${
                     isActive("/about") 
-                      ? "bg-primary text-primary-foreground" 
+                      ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent"
                   }`}
                 >
